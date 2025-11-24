@@ -5,7 +5,7 @@ import logging
 import json
 import time
 
-TOKEN = 'сюда токен типа'
+TOKEN = '8501222332:AAG4yM_GDfB3TpJ-uikLTL5fE8FJsuqxD8g'
 bot = telebot.TeleBot(TOKEN)
 
 logging.basicConfig(level=logging.DEBUG)
