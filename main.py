@@ -400,17 +400,6 @@ def handle_top_callback(call):
         bot.answer_callback_query(call.id, "Эта команда доступна только тому, кто её вызвал.", show_alert=True)
         return
 
-    if criteria == 'back':
-        text = "🏆 Топ 10 игроков этой группы\n\n> Выберите по какому значению показать топ"
-        keyboard = types.InlineKeyboardMarkup()
-        button1 = types.InlineKeyboardButton("По очкам", callback_data=f"top_points_{initiator_id}")
-        button2 = types.InlineKeyboardButton("По картам", callback_data=f"top_cards_{initiator_id}")
-        button3 = types.InlineKeyboardButton("По монетам", callback_data=f"top_coins_{initiator_id}")
-        keyboard.add(button1, button2, button3)
-        bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=keyboard)
-        bot.answer_callback_query(call.id)
-        return
-
     # Get top 10
     users = []
     for user_id, data in bot_data.items():
@@ -427,6 +416,17 @@ def handle_top_callback(call):
     # Sort descending
     users.sort(key=lambda x: x[2], reverse=True)
     top_10 = users[:10]
+
+    if criteria == 'back':
+        text = "🏆 Топ 10 игроков этой группы\n\n> Выберите по какому значению показать топ"
+        keyboard = types.InlineKeyboardMarkup()
+        button1 = types.InlineKeyboardButton("По очкам", callback_data=f"top_points_{initiator_id}")
+        button2 = types.InlineKeyboardButton("По картам", callback_data=f"top_cards_{initiator_id}")
+        button3 = types.InlineKeyboardButton("По монетам", callback_data=f"top_coins_{initiator_id}")
+        keyboard.add(button1, button2, button3)
+        bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=keyboard)
+        bot.answer_callback_query(call.id)
+        return
 
     # Format text
     criteria_name = {'points': 'очкам', 'cards': 'картам', 'coins': 'монетам'}[criteria]
