@@ -4,31 +4,32 @@ import random
 import logging
 import json
 import time
-import threading
+import string
 
 TOKEN = "8501222332:AAG4yM_GDfB3TpJ-uikLTL5fE8FJsuqxD8g"
 bot = telebot.TeleBot(TOKEN)
 
-# Только ты — админ
-ADMIN_USERNAME = "clamsurr"  # без @
-
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 def load_bot_data():
     try:
-        with open('bot_data.json', 'r', encoding='utf-8') as f:
-            content = f.read().strip()
-            return json.loads(content) if content else {}
-    except:
+        with open('bot_data.json', 'r', encoding='utf-8') as file:
+            content = file.read().strip()
+            if not content:
+                return {}
+            return json.loads(content)
+    except FileNotFoundError:
+        return {}
+    except json.JSONDecodeError as e:
+        logging.error(f"Ошибка декодирования JSON: {e}")
         return {}
 
 def save_bot_data():
-    with open('bot_data.json', 'w', encoding='utf-8') as f:
-        json.dump(bot_data, f, ensure_ascii=False, indent=4)
+    with open('bot_data.json', 'w', encoding='utf-8') as file:
+        json.dump(bot_data, file, ensure_ascii=False, indent=4)
 
 bot_data = load_bot_data()
 
-# ТВОЙ ПОЛНЫЙ И ТОЧНЫЙ СПИСОК КАРТ — БЕЗ ЕДИНОЙ ПРАВКИ
 cards = [
     {
         "name": "Лечинкель Гитлер", #софт
@@ -150,7 +151,7 @@ cards = [
         "image_url": 'https://ltdfoto.ru/images/2025/11/25/6032.jpg',
     },
     {
-        "name": "Культурный ле чинкель",
+        "name": "Культурный леチンкель",
         "rarity": "Обычный",
         "points": 50,
         "coins": 5,
@@ -193,7 +194,7 @@ cards = [
     },
 ]
 
-# Группировка по редкости с нормализацией
+# ============================= ГРУППИРОВКА (ТВОЯ) =============================
 rarities = {"Эпический": [], "Редкий": [], "Обычный": [], "Мифический": [], "Легендарный": []}
 for card in cards:
     r = card['rarity'].strip()
@@ -202,172 +203,340 @@ for card in cards:
         rarities[r].append(card)
 
 rarity_order = ["Эпический", "Редкий", "Обычный", "Мифический", "Легендарный"]
-weights = [1.2, 1.5, 4.0, 0.1, 0.5]
+weights = [1.2, 1.5, 4, 0.1, 0.5]
 
-processed_posts = set()
+# ============================= АДМИН-ПАНЕЛЬ И ПРОМО =============================
+def generate_code():
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
 
-# === КОМАНДЫ ===
+@bot.message_handler(commands=['admin'])
+def admin_panel(message):
+    if message.from_user.username != ADMIN_USERNAME:
+        bot.reply_to(message, "Ты кто такой? Давай, до свидания.")
+        return
+
+    markup = types.InlineKeyboardMarkup(row_width=1)
+    markup.add(types.InlineKeyboardButton("Создать промокод", callback_data="create_promo"))
+    markup.add(types.InlineKeyboardButton("Список промокодов", callback_data="list_promos"))
+
+    bot.send_message(message.chat.id, "Заебатая админ-панель @clamsurr\n\nЧто делаем?", reply_markup=markup)
+
+@bot.callback_query_handler(func=lambda call: call.data == "create_promo")
+def choose_rarity(call):
+    if call.from_user.username != ADMIN_USERNAME: return
+
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    for rarity in rarity_order:
+        markup.add(types.InlineKeyboardButton(rarity, callback_data=f"rarity_{rarity}"))
+
+    bot.edit_message_text("Выбери редкость для промокода:", call.message.chat.id, call.message.message_id, reply_markup=markup)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("rarity_"))
+def choose_duration(call):
+    if call.from_user.username != ADMIN_USERNAME: return
+
+    rarity = call.data.split("_")[1]
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    durations = [("1 день", 1), ("3 дня", 3), ("7 дней", 7), ("30 дней", 30), ("Навсегда", 0)]
+    for text, days in durations:
+        markup.add(types.InlineKeyboardButton(text, callback_data=f"duration_{days}_{rarity}"))
+
+    bot.edit_message_text(f"Редкость: {rarity}\n\nВыбери длительность:", call.message.chat.id, call.message.message_id, reply_markup=markup)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("duration_"))
+def choose_activations(call):
+    if call.from_user.username != ADMIN_USERNAME: return
+
+    _, days, rarity = call.data.split("_")
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    activations = [("1 активация", 1), ("5 активаций", 5), ("10 активаций", 10), ("50 активаций", 50), ("Без ограничений", 0)]
+    for text, num in activations:
+        markup.add(types.InlineKeyboardButton(text, callback_data=f"activations_{num}_{days}_{rarity}"))
+
+    bot.edit_message_text(f"Редкость: {rarity}\nДлительность: {'Навсегда' if days=='0' else f'{days} дней'}\n\nВыбери количество активаций:", call.message.chat.id, call.message.message_id, reply_markup=markup)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("activations_"))
+def create_promo_final(call):
+    if call.from_user.username != ADMIN_USERNAME: return
+
+    _, activations, days, rarity = call.data.split("_")
+    activations = int(activations)
+    days = int(days)
+    code = generate_code()
+    expires = 0 if days == 0 else time.time() + days * 86400
+
+    bot_data['promocodes'][code] = {
+        "rarity": rarity,
+        "expires": expires,
+        "max_activations": activations,
+        "used_by": []
+    }
+    save_bot_data()
+
+    activations_text = "Без ограничений" if activations == 0 else f"{activations} раз"
+    duration_text = "Навсегда" if days == 0 else f"{days} дней"
+
+    bot.edit_message_text(f"Промокод заебато создан!\n\nКод: {code}\nРедкость: {rarity}\nДействует: {duration_text}\nАктиваций: {activations_text}", call.message.chat.id, call.message.message_id)
+
+@bot.callback_query_handler(func=lambda call: call.data == "list_promos")
+def list_promos(call):
+    if call.from_user.username != ADMIN_USERNAME: return
+
+    if not bot_data['promocodes']:
+        bot.edit_message_text("Нет промокодов.", call.message.chat.id, call.message.message_id)
+        return
+
+    text = "Список промокодов:\n"
+    for code, data in bot_data['promocodes'].items():
+        used = len(data['used_by'])
+        max_act = data['max_activations'] if data['max_activations'] > 0 else "∞"
+        exp = "Навсегда" if data['expires'] == 0 else ("Истёк" if data['expires'] < time.time() else f"Осталось {(data['expires'] - time.time()) // 86400} дней")
+        text += f"{code} — {data['rarity']} — Активаций: {used}/{max_act} — {exp}\n"
+
+    bot.edit_message_text(text, call.message.chat.id, call.message.message_id)
+
+@bot.message_handler(commands=['promo'])
+def activate_promo(message):
+    args = message.text.split()
+    if len(args) < 2:
+        bot.reply_to(message, "Использование: /promo [код]")
+        return
+
+    code = args[1]
+    if code not in bot_data['promocodes']:
+        bot.reply_to(message, "Неверный промокод.")
+        return
+
+    promo = bot_data['promocodes'][code]
+    user_id = str(message.from_user.id)
+
+    if promo['expires'] != 0 and promo['expires'] < time.time():
+        bot.reply_to(message, "Промокод истёк.")
+        return
+
+    if promo['max_activations'] > 0 and len(promo['used_by']) >= promo['max_activations']:
+        bot.reply_to(message, "Промокод достиг лимита активаций.")
+        return
+
+    if user_id in promo['used_by']:
+        bot.reply_to(message, "Ты уже активировал этот промокод.")
+        return
+
+    rarity = promo['rarity']
+    card = random.choice(rarities[rarity])
+
+    if user_id not in bot_data:
+        bot_data[user_id] = {
+            'balance': 0,
+            'cards': {},
+            'points': 0,
+            'coins': 0,
+            'nickname': message.from_user.username if message.from_user.username else message.from_user.first_name
+        }
+
+    current_time = time.time()
+    points_earned = card['points']
+    coins_earned = card['coins']
+
+    bot_data[user_id]['cards'][card["name"]] = {
+        "last_used": current_time,
+        "rarity": rarity,
+        "points_earned": points_earned,
+        "coins_earned": coins_earned
+    }
+
+    bot_data[user_id]['points'] += points_earned
+    bot_data[user_id]['coins'] += coins_earned
+    promo['used_by'].append(user_id)
+    save_bot_data()
+
+    response = (
+        f"🃏 Карточка «{card['name']}» добавлена от промокода.\n\n"
+        f"💎 Редкость • {rarity}\n"
+        f"✨ Очки • +{points_earned} [{bot_data[user_id]['points']}]\n"
+        f"💰 Монеты • +{coins_earned} [{bot_data[user_id]['coins']}]\n"
+    )
+
+    bot.send_photo(message.chat.id, card["image_url"], caption=response, reply_to_message_id=message.message_id)
+
+# ============================= ТВОИ ХЕНДЛЕРЫ =============================
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     user_id = str(message.from_user.id)
+    logging.debug(f"User {user_id} started bot")
+
     if user_id not in bot_data:
         bot_data[user_id] = {
-            'balance': 0, 'cards': {}, 'points': 0, 'coins': 0,
-            'nickname': message.from_user.username or message.from_user.first_name or "Аноним"
+            'balance': 0,
+            'cards': {},
+            'points': 0,
+            'coins': 0,
+            'nickname': message.from_user.username if message.from_user.username else message.from_user.first_name
         }
         save_bot_data()
 
-    markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton("Добавить в группу", url="https://t.me/Lechinkelcards_bot?startgroup=new"))
-    bot.send_message(message.chat.id, f"Привет, {bot_data[user_id]['nickname']}!\nЯ бот с карточками Лечинкеля\n\nДобавь меня в группу и пиши «лечинкель»", reply_markup=markup)
+    welcome_message = (
+        f"👋 Привет, {bot_data[user_id]['nickname']}! Я бот, в котором ты можешь собирать уникальные карточки и соревноваться с другими игроками.\n\n"
+        f"Чтобы начать, добавь меня в группу, нажав на кнопку ниже."
+    )
+    
+    keyboard = types.InlineKeyboardMarkup()
+    button = types.InlineKeyboardButton("➕ Добавить бота в чат", url='https://t.me/Lechinkelcards_bot?startgroup=new')
+    keyboard.add(button)
+
+    bot.send_message(message.chat.id, welcome_message, reply_markup=keyboard, reply_to_message_id=message.message_id)
+
+@bot.message_handler(commands=['help'])
+def send_help(message):
+    help_text = (
+        f"Что это за бот?\n"
+        f"Тут ты можешь собирать карточки лица Лечинкеля и соревноваться с другими игроками.\n\n"
+        f"Команды:\n"
+        f"👤 /profile — ваш профиль\n"
+        f"✨ /name [ник] — изменить никнейм\n"
+        f"Для получения карты отправьте любую из команды:\n"
+        f"лечинкель\n"
+        f"карту, сэр\n"
+        f"карту сэр\n"
+        f"карту, сэр.\n"
+        f"получить карту"
+    )
+    bot.send_message(message.chat.id, help_text, reply_to_message_id=message.message_id)
 
 @bot.message_handler(commands=['profile'])
 def send_profile(message):
     user_id = str(message.from_user.id)
+    logging.debug(f"User {user_id} requested profile")
+
     if user_id not in bot_data:
-        bot.reply_to(message, "Напиши /start")
-        return
-    u = bot_data[user_id]
-    text = f"Профиль «{u['nickname']}»\n\nID: {user_id}\nКарт: {len(u['cards'])} из {len(cards)}\nОчки: {u['points']}\nМонеты: {u['coins']}"
-    bot.reply_to(message, text)
+        bot_data[user_id] = {
+            'balance': 0,
+            'cards': {},
+            'points': 0,
+            'coins': 0,
+            'nickname': message.from_user.username if message.from_user.username else message.from_user.first_name
+         }
+
+    nickname = bot_data[user_id]['nickname']
+    cards_count = len(bot_data[user_id]['cards'])
+    total_cards = len(cards)  
+    points = bot_data[user_id]['points']
+    coins = bot_data[user_id]['coins']
+
+    profile_text = (
+       f"Профиль «{nickname}»\n\n"
+       f"🔎 ID • {user_id}\n"
+       f"🃏 Карт • {cards_count} из {total_cards}\n"
+       f"✨ Очки • {points}\n"
+       f"💰 Монеты • {coins}"
+   )
+    
+    try:
+        profile_photos = bot.get_user_profile_photos(user_id)
+        
+        avatar_file_id = None
+        if profile_photos.total_count > 0:
+            avatar_file_id = profile_photos.photos[0][-1].file_id
+
+        if avatar_file_id:
+            bot.send_photo(message.chat.id, avatar_file_id, caption=profile_text, reply_to_message_id=message.message_id)
+            logging.debug(f"User {user_id} profile with photo and caption sent")
+        else:
+            bot.send_message(message.chat.id, profile_text, reply_to_message_id=message.message_id)
+            logging.debug(f"User {user_id} profile without photo sent")
+
+    except Exception as e:
+        logging.error(f"User {user_id} error sending profile: {e}")
+        bot.send_message(message.chat.id, f"Не удалось загрузить аватар. Ошибка: {e}\n\n" + profile_text, reply_to_message_id=message.message_id)
 
 @bot.message_handler(commands=['name'])
 def set_nickname(message):
-    try:
-        new_nick = message.text.split(maxsplit=1)[1][:32]
-        bot_data[str(message.from_user.id)]['nickname'] = new_nick
+    user_id = str(message.from_user.id)
+    nickname = message.text.split(maxsplit=1)[1] if len(message.text.split()) > 1 else None
+    logging.debug(f"User {user_id} requested set nickname to {nickname}")
+
+    if nickname:
+        bot_data[user_id]['nickname'] = nickname
         save_bot_data()
-        bot.reply_to(message, f"Ник изменён → «{new_nick}»")
-    except:
-        bot.reply_to(message, "Напиши: /name НовыйНик")
+        bot.send_message(message.chat.id, f"Ваш никнейм изменен на «{nickname}».", reply_to_message_id=message.message_id)
+    else:
+        bot.send_message(message.chat.id, "Пожалуйста, укажите новый никнейм после команды /name.", reply_to_message_id=message.message_id)
 
-@bot.message_handler(commands=['top'])
-def show_top_menu(message):
-    if message.chat.type not in ['group', 'supergroup']:
-        bot.reply_to(message, "Только в группах!")
-        return
-    markup = types.InlineKeyboardMarkup(row_width=1)
-    markup.add(
-        types.InlineKeyboardButton("По очкам", callback_data="top_points"),
-        types.InlineKeyboardButton("По картам", callback_data="top_cards"),
-        types.InlineKeyboardButton("По монетам", callback_data="top_coins")
-    )
-    bot.reply_to(message, "Топ 10 игроков этой группы\n\nВыберите по какому значению показать топ:", reply_markup=markup)
-
-@bot.callback_query_handler(func=lambda call: call.data.startswith('top_'))
-def handle_top(call):
-    crit = call.data.split('_')[1]
-    users = [{'nick': v['nickname'], 'points': v['points'], 'cards': len(v['cards']), 'coins': v['coins']} 
-             for v in bot_data.values()]
-    
-    if crit == 'points': users.sort(key=lambda x: x['points'], reverse=True); title = "Топ по очкам"
-    if crit == 'cards':  users.sort(key=lambda x: x['cards'], reverse=True);  title = "Топ по картам"
-    if crit == 'coins':  users.sort(key=lambda x: x['coins'], reverse=True);  title = "Топ по монетам"
-
-    text = f"{title}\n\n"
-    for i, u in enumerate(users[:10], 1):
-        text += f"{i}. {u['nick']} — {u[crit]}\n"
-
-    try:
-        bot.send_message(call.from_user.id, text)
-        bot.answer_callback_query(call.id, "Топ отправлен в ЛС")
-    except:
-        bot.answer_callback_query(call.id, "Открой чат со мной, чтобы получить топ")
-    bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
-
-# === ВЫДАЧА КАРТЫ ===
-@bot.message_handler(func=lambda m: m.text and m.text.lower().strip() in ['лечинкель', 'карту, сэр', 'карту сэр', 'карту, сэр.', 'получить карту'])
+@bot.message_handler(func=lambda message: message.text.lower() in ['лечинкель', 'карту, сэр', 'карту сэр', 'карту, сэр.', 'получить карту'])
 def give_card(message):
     user_id = str(message.from_user.id)
+    logging.debug(f"User {user_id} requested card")
+
     if user_id not in bot_data:
-        bot.reply_to(message, "Напиши /start")
-        return
-
-    last = max((bot_data[user_id]['cards'].get(c, {}).get('last_used', 0) for c in bot_data[user_id]['cards']), default=0)
-    if time.time() - last < 10800:
-        bot.reply_to(message, "Карты выдаются раз в 3 часа")
-        return
-
-    rarity = random.choices(rarity_order, weights=weights)[0]
-    card = random.choice(rarities[rarity])
-
-    bot_data[user_id]['cards'][card['name']] = {"last_used": time.time(), "rarity": rarity}
-    bot_data[user_id]['points'] += card['points']
-    bot_data[user_id]['coins'] += card['coins']
-    save_bot_data()
-
-    caption = (f"Карточка «{card['name']}»\n\n"
-               f"Редкость • {rarity}\n"
-               f"Очки • +{card['points']} [{bot_data[user_id]['points']}]\n"
-               f"Монеты • +{card['coins']} [{bot_data[user_id]['coins']}]\n\n"
-               f"Следующая карта через 3 часа!")
-
-    bot.send_photo(message.chat.id, card['image_url'], caption=caption, reply_to_message_id=message.message_id)
-
-# === АДМИНКА ТОЛЬКО ДЛЯ @clamsurr ===
-@bot.message_handler(commands=['admin'])
-def admin_panel(message):
-    if (message.from_user.username or "").lower() != ADMIN_USERNAME:
-        bot.reply_to(message, "Ты не @clamsurr")
-        return
-    markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton("Рассылка", callback_data="admin_broadcast"))
-    markup.add(types.InlineKeyboardButton("Статистика", callback_data="admin_stats"))
-    markup.add(types.InlineKeyboardButton("Сброс промо", callback_data="admin_reset"))
-    bot.reply_to(message, "Админка @clamsurr", reply_markup=markup)
-
-@bot.callback_query_handler(func=lambda c: c.data.startswith('admin_'))
-def admin_handler(call):
-    if (call.from_user.username or "").lower() != ADMIN_USERNAME:
-        bot.answer_callback_query(call.id, "Нет доступа")
-        return
-
-    if call.data == "admin_stats":
-        bot.answer_callback_query(call.id, f"Пользователей: {len(bot_data)}\nКарт выдано: {sum(len(u['cards']) for u in bot_data.values())}", show_alert=True)
-    if call.data == "admin_reset":
-        processed_posts.clear()
-        bot.answer_callback_query(call.id, "Промо сброшен", show_alert=True)
-    if call.data == "admin_broadcast":
-        bot.send_message(call.from_user.id, "Пришли сообщение для рассылки:")
-        bot.register_next_step_handler(call.message, do_broadcast)
-
-def do_broadcast(message):
-    if (message.from_user.username or "").lower() != ADMIN_USERNAME:
-        return
-    sent = 0
-    for uid in bot_data:
-        try:
-            bot.forward_message(int(uid), message.chat.id, message.message_id)
-            sent += 1
-            time.sleep(0.03)
-        except: pass
-    bot.reply_to(message, f"Рассылка завершена. Отправлено: {sent}")
-
-# === БОТ ВСЕГДА ПЕРВЫЙ В КОММЕНТАРИЯХ ===
-@bot.message_handler(func=lambda m: getattr(m, 'sender_chat', None) and m.sender_chat.type == 'channel' and m.chat.type in ['group', 'supergroup'])
-def channel_promo(message):
-    key = f"{message.chat.id}_{message.message_id}"
-    if key in processed_posts: return
-    processed_posts.add(key)
+        bot_data[user_id] = {
+            'balance': 0,
+            'cards': {},
+            'points': 0,
+            'coins': 0,
+            'nickname': message.from_user.username if message.from_user.username else message.from_user.first_name
+        }
 
     try:
-        bot.reply_to(message, "Бот уже находится в комментариях")
-    except: pass
+        current_time = time.time()
+        
+        last_used_time = max(
+            (bot_data[user_id]['cards'][card_name]['last_used'] for card_name in bot_data[user_id]['cards']),
+            default=0
+        )
 
-    def promo():
-        phrases = [
-            "Напиши «Лечинкель», чтобы открыть свою уникальную карточку!",
-            "Ждёшь свою карточку? Напиши «Лечинкель» прямо сейчас!",
-            "Получи свою карточку! Просто напиши «Лечинкель»"
-        ]
-        try:
-            bot.reply_to(message, random.choice(phrases))
-        except: pass
-        finally:
-            threading.Timer(600, processed_posts.discard, [key]).start()
+        if current_time - last_used_time < 3 * 3600:
+            remaining_time = (3 * 3600) - (current_time - last_used_time)
+            remaining_hours = remaining_time // 3600
+            remaining_minutes = (remaining_time % 3600) // 60
+            remaining_seconds = remaining_time % 60
+            
+            response = (
+                "Вы осмотрелись, но не увидели рядом лица Лечинкеля 👀\n\n"
+                f"⏳ Подождите {int(remaining_hours)}ч. {int(remaining_minutes)}мин. {int(remaining_seconds)}сек., чтобы попробовать снова."
+            )
+            bot.send_message(message.chat.id, response, reply_to_message_id=message.message_id)
+            return
 
-    threading.Timer(random.uniform(0.9, 1.7), promo).start()
+        selected_rarity = random.choices(rarity_order, weights=weights)[0]
+        card = random.choice(rarities[selected_rarity])
+
+        points_earned = card['points']
+        coins_earned = card['coins']
+
+        bot_data[user_id]['cards'][card["name"]] = {
+            "last_used": current_time,
+            "rarity": selected_rarity,
+            "points_earned": points_earned,
+            "coins_earned": coins_earned
+        }
+        
+        bot_data[user_id]['points'] += points_earned  
+        bot_data[user_id]['coins'] += coins_earned  
+        save_bot_data()
+
+        response = (
+            f"🃏 Карточка «{card['name']}» добавлена.\n\n"
+            f"💎 Редкость • {selected_rarity}\n"
+            f"✨ Очки • +{points_earned} [{bot_data[user_id]['points']}]\n"
+            f"💰 Монеты • +{coins_earned} [{bot_data[user_id]['coins']}]\n\n"
+            f"🎁 Получите следующую карточку через три часа!"
+        )
+
+        bot.send_photo(message.chat.id, card["image_url"], caption=response, reply_to_message_id=message.message_id)
+
+    except Exception as e:
+        logging.error(f"Error giving card to user {user_id}: {e}")
+        bot.send_message(message.chat.id, "Произошла ошибка при получении карточки. Попробуйте еще раз.", reply_to_message_id=message.message_id)
+
+@bot.message_handler(func=lambda m: m.sender_chat and m.sender_chat.type == 'channel' and m.chat.type == 'supergroup')
+def handle_new_channel_post_in_group(message):
+    phrases = [
+        "Напиши «Лечинкель», чтобы открыть свою уникальную карточку!",
+        "Ждёшь свою карточку? Напиши «Лечинкель» прямо сейчас!",
+        "Получи свою карточку! Просто напиши «Лечинкель» 📜"
+    ]
+    text = random.choice(phrases)
+    bot.reply_to(message, text)
 
 if __name__ == '__main__':
-    print("Бот запущен — владелец @clamsurr")
-    bot.infinity_polling(none_stop=True)
+    bot.polling(none_stop=True)
