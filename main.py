@@ -184,7 +184,6 @@ cards = [
         "image_url": 'https://ltdfoto.ru/images/2025/11/25/6051.md.jpg',
     },
 ]
-
 # Группировка карт по редкостям (с нормализацией названий)
 rarities = {
     "Эпический": [],
@@ -306,71 +305,6 @@ def set_nickname(message):
         bot.send_message(message.chat.id, f"Ваш никнейм изменен на «{nickname}».", reply_to_message_id=message.message_id)
     else:
         bot.send_message(message.chat.id, "Пожалуйста, укажите новый никнейм после команды /name.", reply_to_message_id=message.message_id)
-
-@bot.message_handler(commands=['top'])
-def show_top_menu(message):
-    if message.chat.type not in ['group', 'supergroup']:
-        bot.reply_to(message, "Эта команда доступна только в группах.")
-        return
-
-    text = "🏆 Топ 10 игроков этой группы\n\nВыберите по какому значению показать топ"
-
-    keyboard = types.InlineKeyboardMarkup(row_width=1)
-    keyboard.add(
-        types.InlineKeyboardButton("По очкам", callback_data='top_points'),
-        types.InlineKeyboardButton("По картам", callback_data='top_cards'),
-        types.InlineKeyboardButton("По монетам", callback_data='top_coins')
-    )
-
-    bot.reply_to(message, text, reply_markup=keyboard)
-
-@bot.callback_query_handler(func=lambda call: call.data.startswith('top_'))
-def handle_top_callback(call):
-    criteria = call.data.split('_')[1]
-
-    # Собрать список пользователей из БД
-    users = []
-    for user_id, data in bot_data.items():
-        users.append({
-            'nickname': data['nickname'],
-            'points': data['points'],
-            'cards_count': len(data['cards']),
-            'coins': data['coins']
-        })
-
-    if not users:
-        bot.answer_callback_query(call.id, "Нет игроков в базе данных.")
-        return
-
-    if criteria == 'points':
-        users.sort(key=lambda x: x['points'], reverse=True)
-        title = "Топ по очкам"
-        value_key = 'points'
-    elif criteria == 'cards':
-        users.sort(key=lambda x: x['cards_count'], reverse=True)
-        title = "Топ по картам"
-        value_key = 'cards_count'
-    elif criteria == 'coins':
-        users.sort(key=lambda x: x['coins'], reverse=True)
-        title = "Топ по монетам"
-        value_key = 'coins'
-    else:
-        return
-
-    top_text = f"🏆 {title}\n\n"
-    for i, user in enumerate(users[:10], 1):
-        top_text += f"{i}. {user['nickname']} — {user[value_key]}\n"
-
-    # Отправляем топ только вызвавшему пользователю в личку
-    try:
-        bot.send_message(call.from_user.id, top_text)
-        bot.answer_callback_query(call.id, "Топ отправлен вам в личные сообщения.")
-    except Exception as e:
-        logging.error(f"Error sending top to user {call.from_user.id}: {e}")
-        bot.answer_callback_query(call.id, "Не удалось отправить топ в личку. Попробуйте позже.")
-
-    # Удаляем кнопки из оригинального сообщения
-    bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
 
 @bot.message_handler(func=lambda message: message.text.lower() in ['лечинкель', 'карту, сэр', 'карту сэр', 'карту, сэр.', 'получить карту']) # команды чтоб дало вам карточки
 def give_card(message):
