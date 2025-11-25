@@ -5,12 +5,12 @@ import logging
 import json
 import time
 import string
-import threading  # для рассылки и автопромо
+import threading
 
 TOKEN = "8501222332:AAG4yM_GDfB3TpJ-uikLTL5fE8FJsuqxD8g"
 bot = telebot.TeleBot(TOKEN)
 
-ADMIN_USERNAME = "clamsurr"   # ←←← только здесь твой ник
+ADMIN_USERNAME = "clamsurr"   # ← только здесь твой ник
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -39,7 +39,7 @@ cards = [
     {"name": "Лечинкель Гитлер","rarity": "Легендарный","points": 1000,"coins": 50,"image_url": 'https://ltdfoto.ru/images/2025/11/25/6015.jpg'},
     {"name": "Лечинкель Rollback.Fun","rarity": "Легендарный","points": 1000,"coins": 50,"image_url": 'https://ltdfoto.ru/images/2025/11/25/6010.jpg'},
     {"name": "Лечинкель News Pixel","rarity": "Легендарный","points": 1000,"coins": 50,"image_url": 'https://ltdfoto.ru/images/2025/11/25/6017.jpg'},
-    {"name": "Лечинкель пишет сценарий","rarity": "Мифический","points": 10000,"coins": 100,"image_url": 'https://ltdfoto.ru/images/2025/11/25/6018.jpg'},
+    {"name": "Лечинкель пишет сценарий","rarity": "Мифический91","points": 10000,"coins": 100,"image_url": 'https://ltdfoto.ru/images/2025/11/25/6018.jpg'},
     {"name": "Лечинкель в магазине","rarity": "Обычный","points": 50,"coins": 5,"image_url": 'https://ltdfoto.ru/images/2025/11/25/6019.jpg'},
     {"name": "Простой Лечинка","rarity": "Обычный","points": 50,"coins": 5,"image_url": 'https://ltdfoto.ru/images/2025/11/25/6020.jpg'},
     {"name": "Яблуко лечинкель","rarity": "Редкий","points": 250,"coins": 15,"image_url": 'https://ltdfoto.ru/images/2025/11/25/6022.jpg'},
@@ -71,7 +71,6 @@ for card in cards:
 rarity_order = ["Эпический", "Редкий", "Обычный", "Мифический", "Легендарный"]
 weights = [1.2, 1.5, 4, 0.1, 0.5]
 
-# ============================ ПРОМОКОДЫ ============================
 def generate_code():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
 
@@ -154,19 +153,17 @@ def send_profile(message):
             bot.send_message(message.chat.id, profile_text, reply_to_message_id=message.message_id)  
     except Exception as e:  
         logging.error(f"User {user_id} error sending profile: {e}")  
-        bot.send_message(message.chat.id, f"_Not able to load avatar. Ошибка: {e}\n\n" + profile_text, reply_to_message_id=message.message_id)
+        bot.send_message(message.chat.id, f"Не удалось загрузить аватар. Ошибка: {e}\n\n" + profile_text, reply_to_message_id=message.message_id)
 
 @bot.message_handler(commands=['name'])
 def set_nickname(message):
     user_id = str(message.from_user.id)
-    nickname = message.text.split(maxsplit=1)[1] if len(message.text.split()) > 1 else None
-    logging.debug(f"User {user_id} requested set nickname to {nickname}")
-
-    if nickname:  
+    try:
+        nickname = message.text.split(maxsplit=1)[1]
         bot_data[user_id]['nickname'] = nickname  
         save_bot_data()  
         bot.send_message(message.chat.id, f"Ваш никнейм изменен на «{nickname}».", reply_to_message_id=message.message_id)  
-    else:  
+    except:
         bot.send_message(message.chat.id, "Пожалуйста, укажите новый никнейм после команды /name.", reply_to_message_id=message.message_id)
 
 @bot.message_handler(func=lambda message: message.text and message.text.lower() in ['лечинкель', 'карту, сэр', 'карту сэр', 'карту, сэр.', 'получить карту'])
@@ -186,18 +183,18 @@ def give_card(message):
     try:  
         current_time = time.time()  
         last_used_time = max(  
-            (bot_data[user_id]['cards'][card_name].get('last_used', 0) for card_name in bot_data[user_id]['cards']),  
+            (bot_data[user_id]['cards'].get(card_name, {}).get('last_used', 0) for card_name in bot_data[user_id]['cards']),  
             default=0  
         )  
 
         if current_time - last_used_time < 3 * 3600:  
             remaining_time = (3 * 3600) - (current_time - last_used_time)  
-            remaining_hours = remaining_time // 3600  
-            remaining_minutes = (remaining_time % 3600) // 60  
-            remaining_seconds = remaining_time % 60  
+            remaining_hours = int(remaining_time // 3600)
+            remaining_minutes = int((remaining_time % 3600) // 60)
+            remaining_seconds = int(remaining_time % 60)
             response = (  
                 "Вы осмотрелись, но не увидели рядом лица Лечинкеля\n\n"  
-                f"Подождите {int(remaining_hours)}ч. {int(remaining_minutes)}мин. {int(remaining_seconds)}сек., чтобы попробовать снова."  
+                f"Подождите {remaining_hours}ч. {remaining_minutes}мин. {remaining_seconds}сек., чтобы попробовать снова."  
             )  
             bot.send_message(message.chat.id, response, reply_to_message_id=message.message_id)  
             return  
@@ -233,7 +230,7 @@ def give_card(message):
         logging.error(f"Error giving card to user {user_id}: {e}")  
         bot.send_message(message.chat.id, "Произошла ошибка при получении карточки. Попробуйте еще раз.", reply_to_message_id=message.message_id)
 
-# ============================ АДМИНКА + РАССЫЛКА ============================
+# ============================ АДМИН-ПАНЕЛЬ ============================
 @bot.message_handler(commands=['admin'])
 def admin_panel(message):
     if str(message.from_user.username or "").lower() != ADMIN_USERNAME.lower():
@@ -244,11 +241,11 @@ def admin_panel(message):
     markup.add(
         types.InlineKeyboardButton("Создать промокод", callback_data="create_promo"),
         types.InlineKeyboardButton("Список промокодов", callback_data="list_promos"),
-        types.InlineKeyboardButton("Рассылка", callback_data="admin_broadcast")  # ← добавлено
+        types.InlineKeyboardButton("Рассылка", callback_data="admin_broadcast")
     )  
     bot.send_message(message.chat.id, "Админ-панель @clamsurr\n\nВыбирай:", reply_markup=markup)
 
-# Все твои обработчики промокодов (create_promo, rar_, dur_, uses_, list_promos) — без изменений
+# Промокоды
 @bot.callback_query_handler(func=lambda call: call.data == "create_promo")
 def choose_rarity(call):
     if str(call.from_user.username or "").lower() != ADMIN_USERNAME.lower(): return
@@ -279,7 +276,8 @@ def choose_uses(call):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("uses_"))
 def create_final(call):
-    if str(call.from_user.username or "").lower() != ADMIN_USERNAME LOWER(): return
+    if str(call.from_user.username or "").lower() != ADMIN_USERNAME.lower():
+        return
     parts = call.data.split("_")
     uses = 0 if parts[1] == "0" else int(parts[1])
     days = int(parts[2])
@@ -317,20 +315,20 @@ def show_list(call):
         text += f"{code} — {d['rarity']} — {used}/{maxu} — {exp}\n"
     bot.edit_message_text(text, call.message.chat.id, call.message.message_id)
 
-# ←←← РАССЫЛКА (то, что ты просил)
+# РАССЫЛКА
 @bot.callback_query_handler(func=lambda call: call.data == "admin_broadcast")
 def start_broadcast(call):
     if str(call.from_user.username or "").lower() != ADMIN_USERNAME.lower():
         bot.answer_callback_query(call.id, "Нет доступа")
         return
-    bot.send_message(call.from_user.id, "Пришли сообщение для рассылки (можно фото, видео, текст и т.д.):")
+    bot.send_message(call.from_user.id, "Пришли сообщение для рассылки (текст, фото, видео — всё подойдёт):")
     bot.register_next_step_handler(call.message, do_broadcast)
 
 def do_broadcast(message):
     if str(message.from_user.username or "").lower() != ADMIN_USERNAME.lower():
         return
     sent = 0
-    for uid in bot_data.keys():
+    for uid in list(bot_data.keys()):
         try:
             bot.forward_message(int(uid), message.chat.id, message.message_id)
             sent += 1
@@ -339,7 +337,7 @@ def do_broadcast(message):
             pass
     bot.reply_to(message, f"Рассылка завершена. Отправлено: {sent}")
 
-# Активация промокода
+# ПРОМОКОД АКТИВАЦИЯ
 @bot.message_handler(commands=['promo'])
 def activate_promo(message):
     try:
