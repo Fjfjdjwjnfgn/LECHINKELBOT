@@ -311,7 +311,7 @@ def send_top(message):
     user_id = str(message.from_user.id)
     logging.debug(f"User {user_id} requested top")
 
-    text = "🏆 Топ 10 игроков этой группы\n\n> Выберите по какому значению показать топ"
+    text = "🏆 Топ 10 игроков этой группы\n\n\"Выберите по какому значению показать топ\""
 
     keyboard = types.InlineKeyboardMarkup()
     button1 = types.InlineKeyboardButton("По очкам", callback_data=f"top_points_{user_id}")
