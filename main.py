@@ -273,25 +273,31 @@ def send_profile(message):
        f"🃏 Карт • {cards_count} из {total_cards}\n"
        f"✨ Очки • {points}\n"
        f"💰 Монеты • {coins}"
-   )
-    
+    )
+
+    keyboard = types.InlineKeyboardMarkup()
+    button_inventory = types.InlineKeyboardButton("🎒 Инвентарь", callback_data=f"profile_inventory_{user_id}")
+    button_cards = types.InlineKeyboardButton("🃏 Мои карты", callback_data=f"profile_cards_{user_id}")
+    keyboard.add(button_inventory)
+    keyboard.add(button_cards)
+
     try:
         profile_photos = bot.get_user_profile_photos(user_id)
-        
+
         avatar_file_id = None
         if profile_photos.total_count > 0:
             avatar_file_id = profile_photos.photos[0][-1].file_id
 
         if avatar_file_id:
-            bot.send_photo(message.chat.id, avatar_file_id, caption=profile_text, reply_to_message_id=message.message_id)
+            bot.send_photo(message.chat.id, avatar_file_id, caption=profile_text, reply_markup=keyboard, reply_to_message_id=message.message_id)
             logging.debug(f"User {user_id} profile with photo and caption sent")
         else:
-            bot.send_message(message.chat.id, profile_text, reply_to_message_id=message.message_id)
+            bot.send_message(message.chat.id, profile_text, reply_markup=keyboard, reply_to_message_id=message.message_id)
             logging.debug(f"User {user_id} profile without photo sent")
 
     except Exception as e:
         logging.error(f"User {user_id} error sending profile: {e}")
-        bot.send_message(message.chat.id, f"Не удалось загрузить аватар. Ошибка: {e}\n\n" + profile_text, reply_to_message_id=message.message_id)
+        bot.send_message(message.chat.id, f"Не удалось загрузить аватар. Ошибка: {e}\n\n" + profile_text, reply_markup=keyboard, reply_to_message_id=message.message_id)
 
 @bot.message_handler(commands=['name'])
 def set_nickname(message):
@@ -317,7 +323,9 @@ def send_top(message):
     button1 = types.InlineKeyboardButton("По очкам", callback_data=f"top_points_{user_id}")
     button2 = types.InlineKeyboardButton("По картам", callback_data=f"top_cards_{user_id}")
     button3 = types.InlineKeyboardButton("По монетам", callback_data=f"top_coins_{user_id}")
-    keyboard.add(button1, button2, button3)
+    keyboard.add(button1)
+    keyboard.add(button2)
+    keyboard.add(button3)
 
     bot.send_message(message.chat.id, text, reply_markup=keyboard, reply_to_message_id=message.message_id)
 
@@ -388,7 +396,7 @@ def give_card(message):
        logging.error(f"Error giving card to user {user_id}: {e}")
        bot.send_message(message.chat.id, "Произошла ошибка при получении карточки. Попробуйте еще раз.", reply_to_message_id=message.message_id)
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith('top_'))
+@bot.callback_query_handler(func=lambda call: call.data.startswith('top_') or call.data.startswith('profile_'))
 def handle_top_callback(call):
     parts = call.data.split('_')
     if len(parts) != 3:
@@ -409,6 +417,58 @@ def handle_top_callback(call):
         keyboard.add(button1, button2, button3)
         bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=keyboard)
         bot.answer_callback_query(call.id)
+    
+    elif call.data.startswith('profile_'):
+        parts = call.data.split('_', 2)
+        action = parts[1]
+        rest = parts[2] if len(parts) > 2 else ''
+        user_id = rest.split('_')[-1]
+    
+        if str(call.from_user.id) != user_id:
+            bot.answer_callback_query(call.id, "Это не ваш профиль.", show_alert=True)
+            return
+    
+        if action == 'inventory':
+            bot.edit_message_text("Ваш инвентарь пуст", call.message.chat.id, call.message.message_id)
+            bot.answer_callback_query(call.id)
+        elif action == 'cards':
+            keyboard = types.InlineKeyboardMarkup()
+            button_common = types.InlineKeyboardButton("🍁 Обычные", callback_data=f"profile_rarity_Обычный_{user_id}")
+            button_rare = types.InlineKeyboardButton("🧪 Редкие", callback_data=f"profile_rarity_Редкий_{user_id}")
+            keyboard.add(button_common)
+            keyboard.add(button_rare)
+            bot.edit_message_text("Выберите редкость карт:", call.message.chat.id, call.message.message_id, reply_markup=keyboard)
+            bot.answer_callback_query(call.id)
+        elif action == 'rarity':
+            rarity = rest.split('_')[0]
+            user_cards = bot_data[user_id]['cards']
+            cards_of_rarity = [name for name, data in user_cards.items() if data['rarity'] == rarity]
+            if not cards_of_rarity:
+                bot.edit_message_text(f"У вас нет карт редкости {rarity}", call.message.chat.id, call.message.message_id)
+                bot.answer_callback_query(call.id)
+                return
+            keyboard = types.InlineKeyboardMarkup()
+            for card_name in cards_of_rarity:
+                button = types.InlineKeyboardButton(card_name, callback_data=f"profile_card_{card_name}_{user_id}")
+                keyboard.add(button)
+            bot.edit_message_text(f"Карты редкости {rarity}:", call.message.chat.id, call.message.message_id, reply_markup=keyboard)
+            bot.answer_callback_query(call.id)
+        elif action == 'card':
+            card_name = rest.rsplit('_', 1)[0]
+            if card_name not in bot_data[user_id]['cards']:
+                bot.answer_callback_query(call.id, "Карта не найдена.", show_alert=True)
+                return
+            card_data = bot_data[user_id]['cards'][card_name]
+            rarity = card_data['rarity']
+            points = card_data['points_earned']
+            global_card = next((c for c in cards if c['name'] == card_name), None)
+            if not global_card:
+                bot.answer_callback_query(call.id, "Ошибка данных карты.", show_alert=True)
+                return
+            image_url = global_card['image_url']
+            caption = f"{card_name}\n\n💎 Редкость • {rarity}\n✨ Очки • {points}"
+            bot.send_photo(call.message.chat.id, image_url, caption=caption, reply_to_message_id=call.message.message_id)
+            bot.answer_callback_query(call.id)
         return
 
     # Get top 10
