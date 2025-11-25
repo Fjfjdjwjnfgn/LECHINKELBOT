@@ -37,11 +37,11 @@ bot_data = load_bot_data()
 
 cards = [
     {
-        "name": "Лечинкель Гитлер", #софт
-        "rarity": "Легендарный", #редкость
-        "points": 1000, #очки
-        "coins": 50, # монеты
-        "image_url": 'https://ltdfoto.ru/images/2025/11/25/6015.jpg', # ссылка на фото 
+        "name": "Лечинкель Гитлер",
+        "rarity": "Легендарный",
+        "points": 1000,
+        "coins": 50,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/25/6015.jpg', 
     },
     {
         "name": "Лечинкель Rollback.Fun",
@@ -217,12 +217,41 @@ for card in cards:
 rarity_order = ["Эпический", "Редкий", "Обычный", "Мифический", "Легендарный"]
 weights = [1.2, 1.5, 4, 0.1, 0.5]
 
+# Генерация уникального промокода
 def generate_promo_code(length=8):
     chars = string.ascii_uppercase + string.digits
     code = ''.join(random.choice(chars) for _ in range(length))
     while code in bot_data['promocodes']:
         code = ''.join(random.choice(chars) for _ in range(length))
     return code
+
+@bot.message_handler(commands=['admin'])
+def admin_panel(message):
+    if message.from_user.username != ADMIN_USERNAME:
+        bot.reply_to(message, "Вы не администратор.")
+        return
+
+    keyboard = types.InlineKeyboardMarkup(row_width=1)
+    keyboard.add(types.InlineKeyboardButton("Рассылка", callback_data="admin_broadcast"))
+    bot.reply_to(message, "Админ-панель @clamsurr\n\nВыберите действие:", reply_markup=keyboard)
+
+@bot.callback_query_handler(func=lambda call: call.data == "admin_broadcast")
+def start_broadcast(call):
+    bot.send_message(call.from_user.id, "Пришли сообщение для рассылки:")
+    bot.register_next_step_handler(call.message, do_broadcast)
+
+def do_broadcast(message):
+    if message.from_user.username != ADMIN_USERNAME:
+        return
+    sent = 0
+    for uid in list(bot_data.keys()):
+        try:
+            bot.forward_message(int(uid), message.chat.id, message.message_id)
+            sent += 1
+            time.sleep(0.03)
+        except:
+            pass
+    bot.reply_to(message, f"Рассылка завершена. Отправлено: {sent}")
 
 @bot.message_handler(commands=['create_promo'])
 def create_promo(message):
@@ -496,7 +525,7 @@ def handle_top_callback(call):
 
     bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
 
-@bot.message_handler(func=lambda message: message.text.lower() in ['лечинкель', 'карту, сэр', 'карту сэр', 'карту, сэр.', 'получить карту']) # команды чтоб дало вам карточки
+@bot.message_handler(func=lambda message: message.text.lower() in ['лечинкель', 'карту, сэр', 'карту сэр', 'карту, сэр.', 'получить карту'])
 def give_card(message):
    user_id = str(message.from_user.id)
    logging.debug(f"User {user_id} requested card")
@@ -518,7 +547,7 @@ def give_card(message):
            default=0
        )
 
-       if current_time - last_used_time < 3 * 3600:  # типа задержка
+       if current_time - last_used_time < 3 * 3600:
            remaining_time = (3 * 3600) - (current_time - last_used_time)
            remaining_hours = remaining_time // 3600
            remaining_minutes = (remaining_time % 3600) // 60
@@ -526,12 +555,11 @@ def give_card(message):
             
            response = (
                "Вы осмотрелись, но не увидели рядом лица Лечинкеля 👀\n\n"
-               f"⏳ Подождите {int(remaining_hours)}ч. {int(remaining_minutes)}мин. {int(remaining_seconds)}сек., чтобы попробовать снова." # если ты уже использовал карточки
+               f"⏳ Подождите {int(remaining_hours)}ч. {int(remaining_minutes)}мин. {int(remaining_seconds)}сек., чтобы попробовать снова."
            )
            bot.send_message(message.chat.id, response, reply_to_message_id=message.message_id)
            return
 
-       # Выбор редкости с весами
        selected_rarity = random.choices(rarity_order, weights=weights)[0]
        card = random.choice(rarities[selected_rarity])
 
@@ -563,7 +591,6 @@ def give_card(message):
        logging.error(f"Error giving card to user {user_id}: {e}")
        bot.send_message(message.chat.id, "Произошла ошибка при получении карточки. Попробуйте еще раз.", reply_to_message_id=message.message_id)
 
-# Новый обработчик для постов в канале (через группу обсуждений)
 @bot.message_handler(func=lambda m: m.sender_chat and m.sender_chat.type == 'channel' and m.chat.type == 'supergroup')
 def handle_new_channel_post_in_group(message):
     phrases = [
