@@ -1,3 +1,4 @@
+
 import telebot
 from telebot import types
 import random
@@ -408,7 +409,9 @@ def handle_top_callback(call):
         button1 = types.InlineKeyboardButton("По очкам", callback_data=f"top_points_{initiator_id}")
         button2 = types.InlineKeyboardButton("По картам", callback_data=f"top_cards_{initiator_id}")
         button3 = types.InlineKeyboardButton("По монетам", callback_data=f"top_coins_{initiator_id}")
-        keyboard.add(button1, button2, button3)
+        keyboard.add(button1)
+        keyboard.add(button2)
+        keyboard.add(button3)
         bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=keyboard)
         bot.answer_callback_query(call.id)
 
