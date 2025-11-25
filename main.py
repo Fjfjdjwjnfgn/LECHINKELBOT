@@ -4,24 +4,30 @@ import random
 import logging
 import json
 import time
+import string
 
 TOKEN = "8501222332:AAG4yM_GDfB3TpJ-uikLTL5fE8FJsuqxD8g" 
 bot = telebot.TeleBot(TOKEN)
 
 logging.basicConfig(level=logging.DEBUG)
 
+ADMIN_USERNAME = 'clamsurr'  # Админ юзернейм
+
 def load_bot_data():
     try:
         with open('bot_data.json', 'r', encoding='utf-8') as file:
             content = file.read().strip()
             if not content:
-                return {}
-            return json.loads(content)
+                return {'promocodes': {}, 'users': {}}
+            data = json.loads(content)
+            if 'promocodes' not in data:
+                data['promocodes'] = {}
+            return data
     except FileNotFoundError:
-        return {}
+        return {'promocodes': {}, 'users': {}}
     except json.JSONDecodeError as e:
         logging.error(f"Ошибка декодирования JSON: {e}")
-        return {}
+        return {'promocodes': {}, 'users': {}}
 
 def save_bot_data():
     with open('bot_data.json', 'w', encoding='utf-8') as file:
@@ -213,6 +219,127 @@ for card in cards:
 rarity_order = ["Эпический", "Редкий", "Обычный", "Мифический", "Легендарный"]
 weights = [1.2, 1.5, 4, 0.1, 0.5]
 
+# Генерация уникального промокода
+def generate_promo_code(length=8):
+    chars = string.ascii_uppercase + string.digits
+    code = ''.join(random.choice(chars) for _ in range(length))
+    while code in bot_data['promocodes']:
+        code = ''.join(random.choice(chars) for _ in range(length))
+    return code
+
+# Админ-панель: команда для создания промокода
+@bot.message_handler(commands=['create_promo'])
+def create_promo(message):
+    if message.from_user.username != ADMIN_USERNAME:
+        bot.reply_to(message, "Вы не администратор.")
+        return
+
+    keyboard = types.InlineKeyboardMarkup(row_width=2)
+    for rarity in rarity_order:
+        keyboard.add(types.InlineKeyboardButton(rarity, callback_data=f'promo_rarity_{rarity}'))
+
+    bot.reply_to(message, "Выберите редкость карты для промокода:", reply_markup=keyboard)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('promo_rarity_'))
+def handle_promo_rarity(call):
+    if call.from_user.username != ADMIN_USERNAME:
+        bot.answer_callback_query(call.id, "Вы не администратор.")
+        return
+
+    selected_rarity = call.data.split('_')[2]
+    promo_code = generate_promo_code()
+
+    # Сохраняем промокод: редкость и список использовавших юзеров (для предотвращения повторного использования)
+    bot_data['promocodes'][promo_code] = {
+        'rarity': selected_rarity,
+        'used_by': []
+    }
+    save_bot_data()
+
+    bot.answer_callback_query(call.id, f"Промокод создан: {promo_code} (редкость: {selected_rarity})")
+    bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
+
+# Команда для активации промокода /promo <код>
+@bot.message_handler(commands=['promo'])
+def activate_promo(message):
+    user_id = str(message.from_user.id)
+    args = message.text.split()
+    if len(args) < 2:
+        bot.reply_to(message, "Использование: /promo <код>")
+        return
+
+    promo_code = args[1].upper()
+    if promo_code not in bot_data['promocodes']:
+        bot.reply_to(message, "Неверный промокод.")
+        return
+
+    promo = bot_data['promocodes'][promo_code]
+    if user_id in promo['used_by']:
+        bot.reply_to(message, "Вы уже использовали этот промокод.")
+        return
+
+    # Выдача карты выбранной редкости
+    selected_rarity = promo['rarity']
+    if not rarities.get(selected_rarity):
+        bot.reply_to(message, "Ошибка: нет карт этой редкости.")
+        return
+
+    card = random.choice(rarities[selected_rarity])
+    current_time = time.time()
+
+    points_earned = card['points']
+    coins_earned = card['coins']
+
+    if user_id not in bot_data:
+        bot_data[user_id] = {
+            'balance': 0,
+            'cards': {},
+            'points': 0,
+            'coins': 0,
+            'nickname': message.from_user.username if message.from_user.username else message.from_user.first_name
+        }
+
+    bot_data[user_id]['cards'][card["name"]] = {
+        "last_used": current_time,
+        "rarity": selected_rarity,
+        "points_earned": points_earned,
+        "coins_earned": coins_earned
+    }
+
+    bot_data[user_id]['points'] += points_earned
+    bot_data[user_id]['coins'] += coins_earned
+
+    # Отмечаем использование
+    promo['used_by'].append(user_id)
+    save_bot_data()
+
+    response = (
+        f"🃏 Промокод активирован! Карточка «{card['name']}» добавлена.\n\n"
+        f"💎 Редкость • {selected_rarity}\n"
+        f"✨ Очки • +{points_earned} [{bot_data[user_id]['points']}]\n"
+        f"💰 Монеты • +{coins_earned} [{bot_data[user_id]['coins']}]\n"
+    )
+
+    bot.send_photo(message.chat.id, card["image_url"], caption=response, reply_to_message_id=message.message_id)
+
+# Админ-панель: команда для просмотра всех промокодов
+@bot.message_handler(commands=['admin_promos'])
+def list_promos(message):
+    if message.from_user.username != ADMIN_USERNAME:
+        bot.reply_to(message, "Вы не администратор.")
+        return
+
+    if not bot_data['promocodes']:
+        bot.reply_to(message, "Нет активных промокодов.")
+        return
+
+    text = "Список промокодов:\n\n"
+    for code, data in bot_data['promocodes'].items():
+        used_count = len(data['used_by'])
+        text += f"{code} — {data['rarity']} (использовано: {used_count})\n"
+
+    bot.reply_to(message, text)
+
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     user_id = str(message.from_user.id)
@@ -339,12 +466,13 @@ def handle_top_callback(call):
     # Собрать список пользователей из БД
     users = []
     for user_id, data in bot_data.items():
-        users.append({
-            'nickname': data['nickname'],
-            'points': data['points'],
-            'cards_count': len(data['cards']),
-            'coins': data['coins']
-        })
+        if user_id.isdigit():  # Только юзеры, не промокоды и т.д.
+            users.append({
+                'nickname': data['nickname'],
+                'points': data['points'],
+                'cards_count': len(data['cards']),
+                'coins': data['coins']
+            })
 
     if not users:
         bot.answer_callback_query(call.id, "Нет игроков в базе данных.")
