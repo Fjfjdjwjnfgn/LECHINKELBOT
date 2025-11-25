@@ -393,7 +393,7 @@ def redeem_promo(message):
     points = card['points']
     coins = card['coins']
     bot_data[user_id]['cards'][card["name"]] = {
-        "last_used": time.time(),
+        "last_used": 0,  # No cooldown for promo
         "rarity": rarity,
         "points_earned": points,
         "coins_earned": coins
