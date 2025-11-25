@@ -159,8 +159,8 @@ cards = [
     {
         "name": "Лечинкель с вкусняшкой",
         "rarity": "Редкий",
-        "points": 10000,
-        "coins": 30,
+        "points": 250,
+        "coins": 15,
         "image_url": 'https://ltdfoto.ru/images/2025/11/25/6044.jpg',
     },
     {
