@@ -28,7 +28,6 @@ def save_bot_data():
         json.dump(bot_data, file, ensure_ascii=False, indent=4)
 
 bot_data = load_bot_data()
-
 cards = [
     {
         "name": "Лечинкель Гитлер", #софт
