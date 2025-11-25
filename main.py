@@ -273,11 +273,11 @@ def send_profile(message):
        f"🃏 Карт • {cards_count} из {total_cards}\n"
        f"✨ Очки • {points}\n"
        f"💰 Монеты • {coins}"
-   )
-    
+    )
+
     try:
         profile_photos = bot.get_user_profile_photos(user_id)
-        
+
         avatar_file_id = None
         if profile_photos.total_count > 0:
             avatar_file_id = profile_photos.photos[0][-1].file_id
@@ -317,7 +317,9 @@ def send_top(message):
     button1 = types.InlineKeyboardButton("По очкам", callback_data=f"top_points_{user_id}")
     button2 = types.InlineKeyboardButton("По картам", callback_data=f"top_cards_{user_id}")
     button3 = types.InlineKeyboardButton("По монетам", callback_data=f"top_coins_{user_id}")
-    keyboard.add(button1, button2, button3)
+    keyboard.add(button1)
+    keyboard.add(button2)
+    keyboard.add(button3)
 
     bot.send_message(message.chat.id, text, reply_markup=keyboard, reply_to_message_id=message.message_id)
 
@@ -409,7 +411,6 @@ def handle_top_callback(call):
         keyboard.add(button1, button2, button3)
         bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=keyboard)
         bot.answer_callback_query(call.id)
-        return
 
     # Get top 10
     users = []
