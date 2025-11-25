@@ -169,6 +169,146 @@ cards = [
         "points": 500,
         "coins": 25,
         "image_url": 'https://ltdfoto.ru/images/2025/11/25/6047.jpg',
+   cards = [
+    {
+        "name": "Лечинкель Гитлер", #софт
+        "rarity": "Легендарный", #редкость
+        "points": 1000, #очки
+        "coins": 50, # монеты
+        "image_url": 'https://ltdfoto.ru/images/2025/11/25/6015.jpg', # ссылка на фото 
+    },
+    {
+        "name": "Лечинкель Rollback.Fun",
+        "rarity": "Легендарный",
+        "points": 1000,
+        "coins": 50,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/25/6010.jpg',
+    },
+    {
+        "name": "Лечинкель News Pixel",
+        "rarity": "Легендарный",
+        "points": 1000,
+        "coins": 50,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/25/6017.jpg',
+    },
+    {
+        "name": "Лечинкель пишет сценарий",
+        "rarity": "Мифический",
+        "points": 10000,
+        "coins": 100,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/25/6018.jpg',
+    },
+    {
+        "name": "Лечинкель в магазине",
+        "rarity": "Обычный",
+        "points": 50,
+        "coins": 5,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/25/6019.jpg',
+    },
+    {
+        "name": "Простой Лечинка",
+        "rarity": "Обычный",
+        "points": 50,
+        "coins": 5,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/25/6020.jpg',
+    },
+    {
+        "name": "Яблуко лечинкель",
+        "rarity": "Редкий",
+        "points": 250,
+        "coins": 15,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/25/6022.jpg',
+    },
+    {
+        "name": "Лечинкель в бахмуте",
+        "rarity": "Редкий",
+        "points": 250,
+        "coins": 15,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/25/6023.jpg',
+    },
+    {
+        "name": "Лечинкель пополняет тетрадь смерти",
+        "rarity": "Обычный",
+        "points": 250,
+        "coins": 15,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/25/6025.md.jpg',
+    },
+    {
+        "name": "Лечинкель с воробьями ",
+        "rarity": "Эпический",
+        "points": 500,
+        "coins": 25,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/25/6024.jpg',
+    },
+    {
+        "name": "Лечинкель Диктатор",
+        "rarity": "Мифический",
+        "points": 10000,
+        "coins": 100,
+        "image_url": "https://ltdfoto.ru/images/2025/11/25/6026.jpg",
+    },
+    {
+        "name": "Лечинкель целует Гарена",
+        "rarity": "Мифический",
+        "points": 10000,
+        "coins": 100,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/25/6027.jpg',
+    },
+    {
+        "name": "Аллах Лечинкель",
+        "rarity": "Редкий",
+        "points": 250,
+        "coins": 15,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/25/6028.jpg',
+    },
+    {
+        "name": "Лечинкель Аллах Бабах",
+        "rarity": "Эпический",
+        "points": 500,
+        "coins": 25,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/25/6029.jpg',
+    },
+    {
+        "name": "Бомж Лечинкель",
+        "rarity": "Мифический",
+        "points": 10000,
+        "coins": 100,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/25/6030.md.jpg',
+    },
+    {
+        "name": "Мало хохол Лечинкель",
+        "rarity": "Редкий",
+        "points": 250,
+        "coins": 15,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/25/6031.jpg',
+    },
+    {
+        "name": "Верой Лечинкель",
+        "rarity": "Легендарный",
+        "points": 1000,
+        "coins": 50,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/25/6032.jpg',
+    },
+    {
+        "name": "Культурный ле чинкель",
+        "rarity": "Обычный",
+        "points": 50,
+        "coins": 5,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/25/6033.jpg',
+    },
+    {
+        "name": "Лечинкель с вкусняшкой",
+        "rarity": "Редкий",
+        "points": 10000,
+        "coins": 30,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/25/6044.jpg',
+    },
+    {
+        "name": "Лечинкель патриот Украины",
+        "rarity": "Эпический",
+        "points": 500,
+        "coins": 25,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/25/6047.jpg',
     },
     {
         "name": "Лечинкель и Тесак!",
@@ -185,7 +325,6 @@ cards = [
         "image_url": 'https://ltdfoto.ru/images/2025/11/25/6051.md.jpg',
     },
 ]
-
 # Группировка карт по редкостям (с нормализацией названий)
 rarities = {
     "Эпический": [],
