@@ -148,7 +148,7 @@ cards = [
     },
     {
         "name": "Бомж Лечинкель",
-        "rarity": "Мифический",
+        "rarity": "Редкий",
         "points": 250,
         "coins": 15,
         "image_url": 'https://ltdfoto.ru/images/2025/11/25/6030.md.jpg',
@@ -201,6 +201,36 @@ cards = [
         "points": 250,
         "coins": 15,
         "image_url": 'https://ltdfoto.ru/images/2025/11/25/6051.md.jpg',
+        
+    },
+    {
+        "name": "Сатана Лечинкель",
+        "rarity": "Редкий",
+        "points": 250,
+        "coins": 15,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/25/photo_2025-11-25_20-17-26.jpg',
+        
+    },
+    {
+        "name": "Негро Чинкель",
+        "rarity": "Редкий",
+        "points": 250,
+        "coins": 15,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/25/photo_2025-11-25_20-18-32.jpg',
+    },
+    {
+        "name": "Женщина Лечинкель",
+        "rarity": "Редкий",
+        "points": 250,
+        "coins": 15,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/25/photo_2025-11-25_20-21-25.jpg',
+    },
+    {
+        "name": "Потужный Лечинкель",
+        "rarity": "Эпический",
+        "points": 500,
+        "coins": 25,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/25/photo_2025-11-25_20-22-09.jpg',
     },
 ]
 # Группировка карт по редкостям (с нормализацией названий)
