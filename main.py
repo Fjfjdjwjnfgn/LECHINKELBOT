@@ -342,6 +342,23 @@ def send_top(message):
 
     bot.send_message(message.chat.id, text, reply_markup=keyboard, reply_to_message_id=message.message_id)
 
+@bot.message_handler(commands=['my_cards'])
+def show_my_cards(message):
+    user_id = str(message.from_user.id)
+    if user_id not in bot_data:
+        bot.send_message(message.chat.id, "У вас нет карт.", reply_to_message_id=message.message_id)
+        return
+    user_cards = bot_data[user_id]['cards']
+    if not user_cards:
+        bot.send_message(message.chat.id, "У вас нет карт.", reply_to_message_id=message.message_id)
+        return
+    text = "Ваши карты:\n\n"
+    for card_name, data in user_cards.items():
+        rarity = data['rarity']
+        points = data['points_earned']
+        text += f"🃏 {card_name}\n💎 {rarity}\n✨ +{points}\n\n"
+    bot.send_message(message.chat.id, text, reply_to_message_id=message.message_id)
+
 @bot.message_handler(commands=['promo'])
 def redeem_promo(message):
     user_id = str(message.from_user.id)
@@ -474,7 +491,7 @@ def give_card(message):
        logging.error(f"Error giving card to user {user_id}: {e}")
        bot.send_message(message.chat.id, "Произошла ошибка при получении карточки. Попробуйте еще раз.", reply_to_message_id=message.message_id)
 
-@bot.message_handler(func=lambda message: admin_state.get('mailing') and message.from_user.username and message.from_user.username.lower() == 'clamsurr')
+@bot.message_handler(func=lambda message: admin_state.get('mailing') and message.from_user.username and message.from_user.username.lower() == 'clamsurr' and message.chat.type == 'private')
 def handle_admin_mailing(message):
     logging.debug(f"Admin mailing: {message.text}")
     admin_state['mailing'] = False
