@@ -211,7 +211,7 @@ def generate_code():
 
 @bot.message_handler(commands=['admin'])
 def admin_panel(message):
-    if message.from_user.username != ADMIN_USERNAME:
+    if message.from_user.username != ADMIN_USERNAME = "clamsurr"
         bot.reply_to(message, "Ты кто такой? Давай, до свидания.")
         return
 
