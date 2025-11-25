@@ -131,8 +131,8 @@ cards = [
     {
         "name": "Бомж Лечинкель",
         "rarity": "Мифический",
-        "points": 10000,
-        "coins": 100,
+        "points": 250,
+        "coins": 15,
         "image_url": 'https://ltdfoto.ru/images/2025/11/25/6030.md.jpg',
     },
     {
