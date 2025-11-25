@@ -1,10 +1,10 @@
-
 import telebot
 from telebot import types
 import random
 import logging
 import json
 import time
+import string
 
 TOKEN = "8501222332:AAG4yM_GDfB3TpJ-uikLTL5fE8FJsuqxD8g" 
 bot = telebot.TeleBot(TOKEN)
@@ -28,7 +28,25 @@ def save_bot_data():
     with open('bot_data.json', 'w', encoding='utf-8') as file:
         json.dump(bot_data, file, ensure_ascii=False, indent=4)
 
+def load_promo_data():
+    try:
+        with open('promo_data.json', 'r', encoding='utf-8') as file:
+            content = file.read().strip()
+            if not content:
+                return []
+            return json.loads(content)
+    except FileNotFoundError:
+        return []
+    except json.JSONDecodeError as e:
+        logging.error(f"Ошибка декодирования promo JSON: {e}")
+        return []
+
+def save_promo_data():
+    with open('promo_data.json', 'w', encoding='utf-8') as file:
+        json.dump(promo_data, file, ensure_ascii=False, indent=4)
+
 bot_data = load_bot_data()
+promo_data = load_promo_data()
 cards = [
     {
         "name": "Лечинкель Гитлер", #софт
@@ -324,6 +342,62 @@ def send_top(message):
 
     bot.send_message(message.chat.id, text, reply_markup=keyboard, reply_to_message_id=message.message_id)
 
+@bot.message_handler(commands=['promo'])
+def redeem_promo(message):
+    user_id = str(message.from_user.id)
+    code = message.text.split(maxsplit=1)[1] if len(message.text.split()) > 1 else None
+    if not code:
+        bot.send_message(message.chat.id, "Укажите код промокода после /promo", reply_to_message_id=message.message_id)
+        return
+    promo = next((p for p in promo_data if p['code'] == code.upper()), None)
+    if not promo:
+        bot.send_message(message.chat.id, "Промокод не найден.", reply_to_message_id=message.message_id)
+        return
+    if 'created' in promo and time.time() - promo['created'] > promo['duration'] * 86400:
+        bot.send_message(message.chat.id, "Промокод истек.", reply_to_message_id=message.message_id)
+        return
+    if promo['used'] >= promo['activations']:
+        bot.send_message(message.chat.id, "Промокод исчерпан.", reply_to_message_id=message.message_id)
+        return
+    rarity = promo['rarity']
+    if rarity not in rarities or not rarities[rarity]:
+        bot.send_message(message.chat.id, "Ошибка редкости.", reply_to_message_id=message.message_id)
+        return
+    card = random.choice(rarities[rarity])
+    points = card['points']
+    coins = card['coins']
+    bot_data[user_id]['cards'][card["name"]] = {
+        "last_used": time.time(),
+        "rarity": rarity,
+        "points_earned": points,
+        "coins_earned": coins
+    }
+    bot_data[user_id]['points'] += points
+    bot_data[user_id]['coins'] += coins
+    promo['used'] += 1
+    save_bot_data()
+    save_promo_data()
+    response = f"Промокод активирован!\n\n🃏 {card['name']}\n💎 {rarity}\n✨ +{points}\n💰 +{coins}"
+    bot.send_photo(message.chat.id, card["image_url"], caption=response, reply_to_message_id=message.message_id)
+
+admin_state = {}
+
+@bot.message_handler(commands=['admin'])
+def send_admin(message):
+    if message.from_user.username != 'clamsurr':
+        bot.send_message(message.chat.id, "У вас нет доступа к админ панели.", reply_to_message_id=message.message_id)
+        return
+    keyboard = types.InlineKeyboardMarkup()
+    button_mailing = types.InlineKeyboardButton("Рассылка", callback_data="admin_mailing")
+    button_stats = types.InlineKeyboardButton("Статистика", callback_data="admin_stats")
+    button_create_promo = types.InlineKeyboardButton("Создание промокода", callback_data="admin_create_duration")
+    button_list_promo = types.InlineKeyboardButton("Список промокодов", callback_data="admin_list_promo")
+    keyboard.add(button_mailing)
+    keyboard.add(button_stats)
+    keyboard.add(button_create_promo)
+    keyboard.add(button_list_promo)
+    bot.send_message(message.chat.id, "Админ панель:", reply_markup=keyboard)
+
 @bot.message_handler(func=lambda message: message.text.lower() in ['лечинкель', 'карту, сэр', 'карту сэр', 'карту, сэр.', 'получить карту']) # команды чтоб дало вам карточки
 def give_card(message):
    user_id = str(message.from_user.id)
@@ -391,7 +465,19 @@ def give_card(message):
        logging.error(f"Error giving card to user {user_id}: {e}")
        bot.send_message(message.chat.id, "Произошла ошибка при получении карточки. Попробуйте еще раз.", reply_to_message_id=message.message_id)
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith('top_'))
+@bot.message_handler(func=lambda message: admin_state.get('mailing') and message.from_user.username == 'clamsurr')
+def handle_admin_mailing(message):
+   admin_state['mailing'] = False
+   sent_count = 0
+   for user_id in bot_data.keys():
+       try:
+           bot.send_message(int(user_id), message.text)
+           sent_count += 1
+       except Exception as e:
+           logging.error(f"Failed to send to {user_id}: {e}")
+   bot.send_message(message.chat.id, f"Рассылка завершена. Отправлено: {sent_count}")
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith(('top_', 'admin_')))
 def handle_top_callback(call):
     parts = call.data.split('_')
     if len(parts) != 3:
@@ -414,6 +500,85 @@ def handle_top_callback(call):
         keyboard.add(button3)
         bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=keyboard)
         bot.answer_callback_query(call.id)
+    
+    elif call.data.startswith('admin_'):
+        if call.from_user.username != 'clamsurr':
+            bot.answer_callback_query(call.id, "Нет доступа.", show_alert=True)
+            return
+        parts = call.data.split('_', 1)
+        action = parts[1]
+        if action == 'mailing':
+            admin_state['mailing'] = True
+            bot.edit_message_text("Отправьте сообщение для рассылки:", call.message.chat.id, call.message.message_id)
+            bot.answer_callback_query(call.id)
+        elif action == 'stats':
+            total_users = len(bot_data)
+            total_cards = sum(len(data.get('cards', {})) for data in bot_data.values())
+            total_points = sum(data.get('points', 0) for data in bot_data.values())
+            total_coins = sum(data.get('coins', 0) for data in bot_data.values())
+            stats_text = f"Статистика:\nПользователей: {total_users}\nВсего карт: {total_cards}\nВсего очков: {total_points}\nВсего монет: {total_coins}"
+            bot.edit_message_text(stats_text, call.message.chat.id, call.message.message_id)
+            bot.answer_callback_query(call.id)
+        elif action == 'list_promo':
+            if not promo_data:
+                text = "Нет промокодов."
+            else:
+                text = "Промокоды:\n"
+                for p in promo_data:
+                    text += f"{p['code']} - {p['rarity']} - {p['used']}/{p['activations']}\n"
+            bot.edit_message_text(text, call.message.chat.id, call.message.message_id)
+            bot.answer_callback_query(call.id)
+        elif action == 'create_duration':
+            keyboard = types.InlineKeyboardMarkup()
+            button1 = types.InlineKeyboardButton("1 день", callback_data="admin_create_activations_1")
+            button7 = types.InlineKeyboardButton("7 дней", callback_data="admin_create_activations_7")
+            button30 = types.InlineKeyboardButton("30 дней", callback_data="admin_create_activations_30")
+            keyboard.add(button1)
+            keyboard.add(button7)
+            keyboard.add(button30)
+            bot.edit_message_text("Выберите длительность промокода:", call.message.chat.id, call.message.message_id, reply_markup=keyboard)
+            bot.answer_callback_query(call.id)
+        elif action.startswith('create_activations_'):
+            duration = int(action.split('_')[-1])
+            keyboard = types.InlineKeyboardMarkup()
+            button1 = types.InlineKeyboardButton("1 активация", callback_data=f"admin_create_rarity_{duration}_1")
+            button5 = types.InlineKeyboardButton("5 активаций", callback_data=f"admin_create_rarity_{duration}_5")
+            button10 = types.InlineKeyboardButton("10 активаций", callback_data=f"admin_create_rarity_{duration}_10")
+            button100 = types.InlineKeyboardButton("100 активаций", callback_data=f"admin_create_rarity_{duration}_100")
+            keyboard.add(button1)
+            keyboard.add(button5)
+            keyboard.add(button10)
+            keyboard.add(button100)
+            bot.edit_message_text("Выберите количество активаций:", call.message.chat.id, call.message.message_id, reply_markup=keyboard)
+            bot.answer_callback_query(call.id)
+        elif action.startswith('create_rarity_'):
+            parts2 = action.split('_')
+            duration = int(parts2[2])
+            activations = int(parts2[3])
+            keyboard = types.InlineKeyboardMarkup()
+            rarities_list = ["Обычный", "Редкий", "Эпический", "Мифический", "Легендарный"]
+            for r in rarities_list:
+                button = types.InlineKeyboardButton(r, callback_data=f"admin_create_final_{duration}_{activations}_{r}")
+                keyboard.add(button)
+            bot.edit_message_text("Выберите редкость карты:", call.message.chat.id, call.message.message_id, reply_markup=keyboard)
+            bot.answer_callback_query(call.id)
+        elif action.startswith('create_final_'):
+            parts2 = action.split('_')
+            duration = int(parts2[2])
+            activations = int(parts2[3])
+            rarity = '_'.join(parts2[4:])
+            code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
+            promo_data.append({
+                'code': code,
+                'rarity': rarity,
+                'duration': duration,
+                'activations': activations,
+                'used': 0,
+                'created': time.time()
+            })
+            save_promo_data()
+            bot.edit_message_text(f"Промокод создан: {code}", call.message.chat.id, call.message.message_id)
+            bot.answer_callback_query(call.id)
 
     # Get top 10
     users = []
