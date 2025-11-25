@@ -184,6 +184,13 @@ cards = [
         "coins": 25,
         "image_url": 'https://ltdfoto.ru/images/2025/11/25/6051.md.jpg',
     },
+    {
+        "name": "Лечинкель пабло",
+        "rarity": "Редкий",
+        "points": 500,
+        "coins": 25,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/25/6052.md.jpg',
+    },
 ]
 
 # Группировка карт по редкостям (с нормализацией названий)
