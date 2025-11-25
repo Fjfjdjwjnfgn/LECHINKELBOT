@@ -428,8 +428,15 @@ def handle_top_callback(call):
             bot.answer_callback_query(call.id, "Это не ваш профиль.", show_alert=True)
             return
     
+        if call.message.photo:
+            def edit_func(text, reply_markup):
+                bot.edit_message_caption(caption=text, chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=reply_markup)
+        else:
+            def edit_func(text, reply_markup):
+                bot.edit_message_text(text=text, chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=reply_markup)
+
         if action == 'inventory':
-            bot.edit_message_text("Ваш инвентарь пуст", call.message.chat.id, call.message.message_id)
+            edit_func("Ваш инвентарь пуст", None)
             bot.answer_callback_query(call.id)
         elif action == 'cards':
             keyboard = types.InlineKeyboardMarkup()
@@ -437,21 +444,21 @@ def handle_top_callback(call):
             button_rare = types.InlineKeyboardButton("🧪 Редкие", callback_data=f"profile_rarity_Редкий_{user_id}")
             keyboard.add(button_common)
             keyboard.add(button_rare)
-            bot.edit_message_text("Выберите редкость карт:", call.message.chat.id, call.message.message_id, reply_markup=keyboard)
+            edit_func("Выберите редкость карт:", keyboard)
             bot.answer_callback_query(call.id)
         elif action == 'rarity':
             rarity = rest.split('_')[0]
             user_cards = bot_data[user_id]['cards']
             cards_of_rarity = [name for name, data in user_cards.items() if data['rarity'] == rarity]
             if not cards_of_rarity:
-                bot.edit_message_text(f"У вас нет карт редкости {rarity}", call.message.chat.id, call.message.message_id)
+                edit_func(f"У вас нет карт редкости {rarity}", None)
                 bot.answer_callback_query(call.id)
                 return
             keyboard = types.InlineKeyboardMarkup()
             for card_name in cards_of_rarity:
                 button = types.InlineKeyboardButton(card_name, callback_data=f"profile_card_{card_name}_{user_id}")
                 keyboard.add(button)
-            bot.edit_message_text(f"Карты редкости {rarity}:", call.message.chat.id, call.message.message_id, reply_markup=keyboard)
+            edit_func(f"Карты редкости {rarity}:", keyboard)
             bot.answer_callback_query(call.id)
         elif action == 'card':
             card_name = rest.rsplit('_', 1)[0]
