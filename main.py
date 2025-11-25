@@ -410,7 +410,7 @@ admin_state = {}
 
 @bot.message_handler(commands=['admin'])
 def send_admin(message):
-    if message.from_user.username and message.from_user.username.lower() != 'clamsurr':
+    if message.from_user.username and message.from_user.username.lower() not in ['clamsurr', 'kamarkahetman']:
         bot.send_message(message.chat.id, "У вас нет доступа к админ панели.", reply_to_message_id=message.message_id)
         return
     keyboard = types.InlineKeyboardMarkup()
@@ -491,7 +491,7 @@ def give_card(message):
        logging.error(f"Error giving card to user {user_id}: {e}")
        bot.send_message(message.chat.id, "Произошла ошибка при получении карточки. Попробуйте еще раз.", reply_to_message_id=message.message_id)
 
-@bot.message_handler(func=lambda message: admin_state.get('mailing') and message.from_user.username and message.from_user.username.lower() == 'clamsurr' and message.chat.type == 'private')
+@bot.message_handler(func=lambda message: admin_state.get('mailing') and message.from_user.username and message.from_user.username.lower() in ['clamsurr', 'kamarkahetman'] and message.chat.type == 'private')
 def handle_admin_mailing(message):
     logging.debug(f"Admin mailing: {message.text}")
     admin_state['mailing'] = False
@@ -561,7 +561,7 @@ def handle_top_callback(call):
 @bot.callback_query_handler(func=lambda call: call.data.startswith('admin_'))
 def handle_admin_callback(call):
     logging.debug(f"Admin callback: {call.data} from {call.from_user.username}")
-    if call.from_user.username and call.from_user.username.lower() != 'clamsurr':
+    if call.from_user.username and call.from_user.username.lower() not in ['clamsurr', 'kamarkahetman']:
         bot.answer_callback_query(call.id, "Нет доступа.", show_alert=True)
         return
     parts = call.data.split('_', 1)
