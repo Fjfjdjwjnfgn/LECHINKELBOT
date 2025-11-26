@@ -758,9 +758,7 @@ def handle_shop_callback(call):
     parts = call.data.split('_', 1)
     booster = parts[1].split('_')[0]
     user_id = parts[1].split('_')[1]
-    if str(call.from_user.id) != user_id:
-        bot.answer_callback_query(call.id, "Это не ваш магазин.", show_alert=True)
-        return
+    # Allow anyone to view, but check for buy
     if booster == 'luck':
         text = "🍀 Бустер «удача»\n\nУвеличивает вероятность выпадения редких карт на 35%\n\n💰 Цена • 20 монет\n⌚️ Время действия • однократное использование"
         keyboard = types.InlineKeyboardMarkup()
@@ -786,6 +784,9 @@ def handle_shop_callback(call):
         return
     elif booster == 'buy':
         item = parts[1].split('_')[1]
+        if str(call.from_user.id) != user_id:
+            bot.answer_callback_query(call.id, "Это не ваш магазин.", show_alert=True)
+            return
         if item == 'luck':
             price = 20
             item_name = 'luck_booster'
