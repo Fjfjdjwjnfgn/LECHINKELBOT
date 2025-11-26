@@ -260,6 +260,13 @@ cards = [
         "coins": 5,
         "image_url": 'https://ltdfoto.ru/images/2025/11/26/photo_2025-11-26_16-22-34.jpg',
     },
+    {
+        "name": "Лечинкель КФС",
+        "rarity": "Легендарный",
+        "points": 50,
+        "coins": 5,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/26/photo_2025-11-26_16-50-09.jpg',
+    },
 ]
 # Группировка карт по редкостям (с нормализацией названий)
 rarities = {
@@ -356,6 +363,12 @@ def send_profile(message):
        f"💰 Монеты • {coins}"
     )
 
+    keyboard = types.InlineKeyboardMarkup()
+    button_inventory = types.InlineKeyboardButton("🎒 Инвентарь", callback_data=f"profile_inventory_{user_id}")
+    button_cards = types.InlineKeyboardButton("🃏 Мои карты", callback_data=f"profile_cards_{user_id}")
+    keyboard.add(button_inventory)
+    keyboard.add(button_cards)
+
     try:
         profile_photos = bot.get_user_profile_photos(user_id)
 
@@ -364,15 +377,16 @@ def send_profile(message):
             avatar_file_id = profile_photos.photos[0][-1].file_id
 
         if avatar_file_id:
-            bot.send_photo(message.chat.id, avatar_file_id, caption=profile_text, reply_to_message_id=message.message_id)
-            logging.debug(f"User {user_id} profile with photo and caption sent")
+            bot.send_photo(message.chat.id, avatar_file_id, caption=profile_text, reply_markup=keyboard, reply_to_message_id=message.message_id)
+            logging.debug(f"User {user_id} profile with photo sent")
         else:
-            bot.send_message(message.chat.id, profile_text, reply_to_message_id=message.message_id)
-            logging.debug(f"User {user_id} profile without photo sent")
+            bot.send_message(message.chat.id, profile_text, reply_markup=keyboard, reply_to_message_id=message.message_id)
+            logging.debug(f"User {user_id} profile sent")
 
     except Exception as e:
         logging.error(f"User {user_id} error sending profile: {e}")
-        bot.send_message(message.chat.id, f"Не удалось загрузить аватар. Ошибка: {e}\n\n" + profile_text, reply_to_message_id=message.message_id)
+        bot.send_message(message.chat.id, profile_text, reply_markup=keyboard, reply_to_message_id=message.message_id)
+        logging.debug(f"User {user_id} profile sent on error")
 
 @bot.message_handler(commands=['name'])
 def set_nickname(message):
@@ -520,8 +534,14 @@ def give_card(message):
            'cards': {},
            'points': 0,
            'coins': 0,
-           'nickname': message.from_user.username if message.from_user.username else message.from_user.first_name
+           'nickname': message.from_user.username if message.from_user.username else message.from_user.first_name,
+           'inventory': {'luck_booster': 0, 'time_booster': 0},
+           'active_luck': False
        }
+   if 'inventory' not in bot_data[user_id]:
+       bot_data[user_id]['inventory'] = {'luck_booster': 0, 'time_booster': 0}
+   if 'active_luck' not in bot_data[user_id]:
+       bot_data[user_id]['active_luck'] = False
 
    try:
        current_time = time.time()
@@ -783,10 +803,24 @@ def handle_shop_callback(call):
         bot.answer_callback_query(call.id)
         return
     elif booster == 'buy':
+        buyer_id = str(call.from_user.id)
+        if buyer_id not in bot_data:
+            bot_data[buyer_id] = {
+                'balance': 0,
+                'cards': {},
+                'points': 0,
+                'coins': 0,
+                'nickname': call.from_user.username or 'Unknown',
+                'inventory': {'luck_booster': 0, 'time_booster': 0},
+                'active_luck': False
+            }
+            save_bot_data()
+        if 'inventory' not in bot_data[buyer_id]:
+            bot_data[buyer_id]['inventory'] = {'luck_booster': 0, 'time_booster': 0}
+        if 'active_luck' not in bot_data[buyer_id]:
+            bot_data[buyer_id]['active_luck'] = False
+        save_bot_data()
         item = parts[1].split('_')[1]
-        if str(call.from_user.id) != user_id:
-            bot.answer_callback_query(call.id, "Это не ваш магазин.", show_alert=True)
-            return
         if item == 'luck':
             price = 20
             item_name = 'luck_booster'
@@ -795,13 +829,13 @@ def handle_shop_callback(call):
             item_name = 'time_booster'
         else:
             return
-        if bot_data[user_id]['coins'] < price:
+        if bot_data[buyer_id]['coins'] < price:
             bot.answer_callback_query(call.id, "💰 У вас недостаточно монет", show_alert=True)
             return
-        bot_data[user_id]['coins'] -= price
-        bot_data[user_id]['inventory'][item_name] += 1
+        bot_data[buyer_id]['coins'] -= price
+        bot_data[buyer_id]['inventory'][item_name] += 1
         save_bot_data()
-        bot.answer_callback_query(call.id, f"Куплено! Осталось монет: {bot_data[user_id]['coins']}", show_alert=True)
+        bot.answer_callback_query(call.id, f"Куплено! Осталось монет: {bot_data[buyer_id]['coins']}", show_alert=True)
         return
     bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=keyboard)
     bot.answer_callback_query(call.id)
