@@ -691,15 +691,19 @@ def handle_profile_callback(call):
     if action.startswith('inventory'):
         keyboard = types.InlineKeyboardMarkup()
         button_boosters = types.InlineKeyboardButton("⚡️ Бустеры", callback_data=f"profile_boosters_{user_id}")
+        back_button = types.InlineKeyboardButton("Назад", callback_data=f"profile_back_{user_id}")
         keyboard.add(button_boosters)
+        keyboard.add(back_button)
         edit_func("🎒 Инвентарь\nВыберите тип предмета", keyboard)
         bot.answer_callback_query(call.id)
     elif action.startswith('cards'):
         keyboard = types.InlineKeyboardMarkup()
         button_common = types.InlineKeyboardButton("🍁 Обычные", callback_data=f"profile_rarity_Обычный_{user_id}")
         button_rare = types.InlineKeyboardButton("🧪 Редкие", callback_data=f"profile_rarity_Редкий_{user_id}")
+        back_button = types.InlineKeyboardButton("Назад", callback_data=f"profile_back_{user_id}")
         keyboard.add(button_common)
         keyboard.add(button_rare)
+        keyboard.add(back_button)
         edit_func("Выберите редкость карт:", keyboard)
         bot.answer_callback_query(call.id)
     elif action.startswith('rarity'):
@@ -714,6 +718,8 @@ def handle_profile_callback(call):
         for card_name in cards_of_rarity:
             button = types.InlineKeyboardButton(card_name, callback_data=f"profile_card_{card_name}_{user_id}")
             keyboard.add(button)
+        back_button = types.InlineKeyboardButton("Назад", callback_data=f"profile_cards_{user_id}")
+        keyboard.add(back_button)
         edit_func(f"Карты редкости {rarity}:", keyboard)
         bot.answer_callback_query(call.id)
     elif action.startswith('card'):
@@ -732,6 +738,22 @@ def handle_profile_callback(call):
         caption = f"{card_name}\n\n💎 Редкость • {rarity}\n✨ Очки • {points}"
         bot.send_photo(call.message.chat.id, image_url, caption=caption, reply_to_message_id=call.message.message_id)
         bot.answer_callback_query(call.id)
+    elif action.startswith('back'):
+        # Back to profile main
+        profile_text = (
+           f"Профиль «{bot_data[user_id]['nickname']}»\n\n"
+           f"🔎 ID • {user_id}\n"
+           f"🃏 Карт • {len(bot_data[user_id]['cards'])} из {len(cards)}\n"
+           f"✨ Очки • {bot_data[user_id]['points']}\n"
+           f"💰 Монеты • {bot_data[user_id]['coins']}"
+        )
+        keyboard = types.InlineKeyboardMarkup()
+        button_inventory = types.InlineKeyboardButton("🎒 Инвентарь", callback_data=f"profile_inventory_{user_id}")
+        button_cards = types.InlineKeyboardButton("🃏 Мои карты", callback_data=f"profile_cards_{user_id}")
+        keyboard.add(button_inventory)
+        keyboard.add(button_cards)
+        edit_func(profile_text, keyboard)
+        bot.answer_callback_query(call.id)
     elif action.startswith('boosters'):
         inventory = bot_data[user_id]['inventory']
         if inventory['luck_booster'] == 0 and inventory['time_booster'] == 0:
@@ -745,6 +767,8 @@ def handle_profile_callback(call):
         if inventory['time_booster'] > 0:
             button_time = types.InlineKeyboardButton(f"⚡ Ускоритель [{inventory['time_booster']} шт]", callback_data=f"profile_activate_time_{user_id}")
             keyboard.add(button_time)
+        back_button = types.InlineKeyboardButton("Назад", callback_data=f"profile_inventory_{user_id}")
+        keyboard.add(back_button)
         edit_func("⚡️ Бустеры", keyboard)
         bot.answer_callback_query(call.id)
     elif action.startswith('activate'):
@@ -787,7 +811,7 @@ def handle_shop_callback(call):
         keyboard.add(buy_button)
         keyboard.add(back_button)
     elif booster == 'time':
-        text = "⚡ Бустер «ускоритель времени»\n\nСокращает время ожидания получения карточки на 1 час\n\n💰 Цена • 15 монет\n⌚️ Время действия • однократное использование"
+        text = "⚡ Бустер «ускоритель времени»\n\nСокращает время ожидания получения карточки на 1 час\n\n💰 Цена • 100 монет\n⌚️ Время действия • однократное использование"
         keyboard = types.InlineKeyboardMarkup()
         buy_button = types.InlineKeyboardButton("Купить", callback_data=f"shop_buy_time_{user_id}")
         back_button = types.InlineKeyboardButton("Назад", callback_data=f"shop_back_{user_id}")
@@ -825,7 +849,7 @@ def handle_shop_callback(call):
             price = 20
             item_name = 'luck_booster'
         elif item == 'time':
-            price = 15
+            price = 100
             item_name = 'time_booster'
         else:
             return
