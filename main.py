@@ -829,11 +829,20 @@ def handle_shop_callback(call):
             item_name = 'time_booster'
         else:
             return
+        current_time = time.time()
+        last_buy = bot_data[buyer_id].get('last_shop_buy', 0)
+        if current_time - last_buy < 3 * 3600:
+            remaining = 3 * 3600 - (current_time - last_buy)
+            hours = int(remaining // 3600)
+            minutes = int((remaining % 3600) // 60)
+            bot.answer_callback_query(call.id, f"Подождите {hours}ч. {minutes}мин. перед следующей покупкой.", show_alert=True)
+            return
         if bot_data[buyer_id]['coins'] < price:
             bot.answer_callback_query(call.id, "💰 У вас недостаточно монет", show_alert=True)
             return
         bot_data[buyer_id]['coins'] -= price
         bot_data[buyer_id]['inventory'][item_name] += 1
+        bot_data[buyer_id]['last_shop_buy'] = current_time
         save_bot_data()
         bot.answer_callback_query(call.id, f"Куплено! Осталось монет: {bot_data[buyer_id]['coins']}", show_alert=True)
         return
