@@ -804,14 +804,14 @@ def handle_shop_callback(call):
     user_id = parts[1].split('_')[1]
     # Allow anyone to view, but check for buy
     if booster == 'luck':
-        text = "🍀 Бустер «удача»\n\nУвеличивает вероятность выпадения редких карт на 35%\n\n💰 Цена • 20 монет\n⌚️ Время действия • однократное использование"
+        text = "🍀 Бустер «удача»\n\nУвеличивает вероятность выпадения редких карт на 35%\n\n💰 Цена • 40 монет\n⌚️ Время действия • однократное использование"
         keyboard = types.InlineKeyboardMarkup()
         buy_button = types.InlineKeyboardButton("Купить", callback_data=f"shop_buy_luck_{user_id}")
         back_button = types.InlineKeyboardButton("Назад", callback_data=f"shop_back_{user_id}")
         keyboard.add(buy_button)
         keyboard.add(back_button)
     elif booster == 'time':
-        text = "⚡ Бустер «ускоритель времени»\n\nСокращает время ожидания получения карточки на 1 час\n\n💰 Цена • 100 монет\n⌚️ Время действия • однократное использование"
+        text = "⚡ Бустер «ускоритель времени»\n\nСокращает время ожидания получения карточки на 1 час\n\n💰 Цена • 70 монет\n⌚️ Время действия • однократное использование"
         keyboard = types.InlineKeyboardMarkup()
         buy_button = types.InlineKeyboardButton("Купить", callback_data=f"shop_buy_time_{user_id}")
         back_button = types.InlineKeyboardButton("Назад", callback_data=f"shop_back_{user_id}")
@@ -846,10 +846,10 @@ def handle_shop_callback(call):
         save_bot_data()
         item = parts[1].split('_')[1]
         if item == 'luck':
-            price = 20
+            price = 40
             item_name = 'luck_booster'
         elif item == 'time':
-            price = 100
+            price = 70
             item_name = 'time_booster'
         else:
             return
