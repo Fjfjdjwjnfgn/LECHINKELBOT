@@ -230,7 +230,35 @@ cards = [
         "rarity": "Эпический",
         "points": 500,
         "coins": 25,
-        "image_url": 'https://ltdfoto.ru/images/2025/11/25/photo_2025-11-25_20-22-09.jpg',
+        "image_url": 'https://ltdfoto.ru/images/2025/11/25/photo_2025-11-25_20-22-09.jpg',  
+    },
+    {
+        "name": "Лечинкель Комару",
+        "rarity": "Обычный",
+        "points": 50,
+        "coins": 5,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/26/photo_2025-11-26_16-14-23.jpg',
+    },
+    {
+        "name": "Гоблин Лечинкель",
+        "rarity": "Обычный",
+        "points": 50,
+        "coins": 5,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/26/photo_2025-11-26_16-20-09.jpg',
+    },
+    {
+        "name": "Лечинк... Стоп а где он?",
+        "rarity": "Обычный",
+        "points": 50,
+        "coins": 5,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/26/photo_2025-11-26_16-21-07.jpg',
+    },
+    {
+        "name": "Худой Лечинкель",
+        "rarity": "Обычный",
+        "points": 50,
+        "coins": 5,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/26/photo_2025-11-26_16-22-34.jpg',
     },
 ]
 # Группировка карт по редкостям (с нормализацией названий)
@@ -251,7 +279,7 @@ for card in cards:
 
 # Порядок редкостей и веса
 rarity_order = ["Эпический", "Редкий", "Обычный", "Мифический", "Легендарный"]
-weights = [1.2, 1.5, 4, 0.1, 0.5]
+weights = [3, 6, 10, 1, 2]
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
@@ -264,7 +292,9 @@ def send_welcome(message):
             'cards': {},
             'points': 0,
             'coins': 0,
-            'nickname': message.from_user.username if message.from_user.username else message.from_user.first_name
+            'nickname': message.from_user.username if message.from_user.username else message.from_user.first_name,
+            'inventory': {'luck_booster': 0, 'time_booster': 0},
+            'active_luck': False
         }
         save_bot_data()
 
@@ -307,7 +337,9 @@ def send_profile(message):
             'cards': {},
             'points': 0,
             'coins': 0,
-            'nickname': message.from_user.username if message.from_user.username else message.from_user.first_name
+            'nickname': message.from_user.username if message.from_user.username else message.from_user.first_name,
+            'inventory': {'luck_booster': 0, 'time_booster': 0},
+            'active_luck': False
          }
 
     nickname = bot_data[user_id]['nickname']
@@ -389,6 +421,27 @@ def show_my_cards(message):
         text += f"🃏 {card_name}\n💎 {rarity}\n✨ +{points}\n\n"
     bot.send_message(message.chat.id, text, reply_to_message_id=message.message_id)
 
+@bot.message_handler(commands=['shop'])
+def send_shop(message):
+    user_id = str(message.from_user.id)
+    if user_id not in bot_data:
+        bot_data[user_id] = {
+            'balance': 0,
+            'cards': {},
+            'points': 0,
+            'coins': 0,
+            'nickname': message.from_user.username if message.from_user.username else message.from_user.first_name,
+            'inventory': {'luck_booster': 0, 'time_booster': 0},
+            'active_luck': False
+        }
+        save_bot_data()
+    keyboard = types.InlineKeyboardMarkup()
+    button_luck = types.InlineKeyboardButton("🍀 Удача", callback_data=f"shop_luck_{user_id}")
+    button_time = types.InlineKeyboardButton("⚡ Ускоритель времени", callback_data=f"shop_time_{user_id}")
+    keyboard.add(button_luck)
+    keyboard.add(button_time)
+    bot.send_message(message.chat.id, "⚡️ Бустеры\nВыберите нужный бустер", reply_markup=keyboard, reply_to_message_id=message.message_id)
+
 @bot.message_handler(commands=['promo'])
 def redeem_promo(message):
     user_id = str(message.from_user.id)
@@ -398,7 +451,9 @@ def redeem_promo(message):
             'cards': {},
             'points': 0,
             'coins': 0,
-            'nickname': message.from_user.username if message.from_user.username else message.from_user.first_name
+            'nickname': message.from_user.username if message.from_user.username else message.from_user.first_name,
+            'inventory': {'luck_booster': 0, 'time_booster': 0},
+            'active_luck': False
         }
         save_bot_data()
     code = message.text.split(maxsplit=1)[1] if len(message.text.split()) > 1 else None
@@ -490,8 +545,19 @@ def give_card(message):
            return
 
        # Выбор редкости с весами
-       selected_rarity = random.choices(rarity_order, weights=weights)[0]
-       card = random.choice(rarities[selected_rarity])
+       current_weights = weights
+       if bot_data[user_id]['active_luck']:
+           # Increase rare and epic chances
+           current_weights = [5, 10, 10, 1, 2]  # Boost rare/epic
+           bot_data[user_id]['active_luck'] = False
+       selected_rarity = random.choices(rarity_order, weights=current_weights)[0]
+       owned_cards = set(bot_data[user_id]['cards'].keys())
+       available_cards = [c for c in rarities[selected_rarity] if c["name"] not in owned_cards and c["name"] != bot_data[user_id].get('last_card')]
+       if not available_cards:
+           available_cards = [c for c in rarities[selected_rarity] if c["name"] not in owned_cards]
+       if not available_cards:
+           available_cards = rarities[selected_rarity]  # If all owned, allow duplicate
+       card = random.choice(available_cards)
 
        points_earned = card['points']
        coins_earned = card['coins']
@@ -502,9 +568,10 @@ def give_card(message):
            "points_earned": points_earned,
            "coins_earned": coins_earned
        }
+       bot_data[user_id]['last_card'] = card["name"]
        
-       bot_data[user_id]['points'] += points_earned  
-       bot_data[user_id]['coins'] += coins_earned  
+       bot_data[user_id]['points'] += points_earned
+       bot_data[user_id]['coins'] += coins_earned
        save_bot_data()
 
        response = (
@@ -585,6 +652,156 @@ def handle_top_callback(call):
     back_button = types.InlineKeyboardButton("Назад", callback_data=f"top_back_{initiator_id}")
     keyboard.add(back_button)
 
+    bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=keyboard)
+    bot.answer_callback_query(call.id)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('profile_'))
+def handle_profile_callback(call):
+    parts = call.data.split('_', 1)
+    action = parts[1]
+    rest = '' if len(parts) < 2 else parts[1].split('_', 1)[1]
+    user_id = rest.split('_')[-1] if rest else ''
+    if str(call.from_user.id) != user_id:
+        bot.answer_callback_query(call.id, "Это не ваш профиль.", show_alert=True)
+        return
+    if call.message.photo:
+        edit_func = lambda text, markup: bot.edit_message_caption(caption=text, chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=markup)
+    else:
+        edit_func = lambda text, markup: bot.edit_message_text(text=text, chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=markup)
+    if action.startswith('inventory'):
+        keyboard = types.InlineKeyboardMarkup()
+        button_boosters = types.InlineKeyboardButton("⚡️ Бустеры", callback_data=f"profile_boosters_{user_id}")
+        keyboard.add(button_boosters)
+        edit_func("🎒 Инвентарь\nВыберите тип предмета", keyboard)
+        bot.answer_callback_query(call.id)
+    elif action.startswith('cards'):
+        keyboard = types.InlineKeyboardMarkup()
+        button_common = types.InlineKeyboardButton("🍁 Обычные", callback_data=f"profile_rarity_Обычный_{user_id}")
+        button_rare = types.InlineKeyboardButton("🧪 Редкие", callback_data=f"profile_rarity_Редкий_{user_id}")
+        keyboard.add(button_common)
+        keyboard.add(button_rare)
+        edit_func("Выберите редкость карт:", keyboard)
+        bot.answer_callback_query(call.id)
+    elif action.startswith('rarity'):
+        rarity = rest.split('_')[0]
+        user_cards = bot_data[user_id]['cards']
+        cards_of_rarity = [name for name, data in user_cards.items() if data['rarity'] == rarity]
+        if not cards_of_rarity:
+            edit_func(f"У вас нет карт редкости {rarity}", None)
+            bot.answer_callback_query(call.id)
+            return
+        keyboard = types.InlineKeyboardMarkup()
+        for card_name in cards_of_rarity:
+            button = types.InlineKeyboardButton(card_name, callback_data=f"profile_card_{card_name}_{user_id}")
+            keyboard.add(button)
+        edit_func(f"Карты редкости {rarity}:", keyboard)
+        bot.answer_callback_query(call.id)
+    elif action.startswith('card'):
+        card_name = rest.rsplit('_', 1)[0]
+        if card_name not in bot_data[user_id]['cards']:
+            bot.answer_callback_query(call.id, "Карта не найдена.", show_alert=True)
+            return
+        card_data = bot_data[user_id]['cards'][card_name]
+        rarity = card_data['rarity']
+        points = card_data['points_earned']
+        global_card = next((c for c in cards if c['name'] == card_name), None)
+        if not global_card:
+            bot.answer_callback_query(call.id, "Ошибка данных карты.", show_alert=True)
+            return
+        image_url = global_card['image_url']
+        caption = f"{card_name}\n\n💎 Редкость • {rarity}\n✨ Очки • {points}"
+        bot.send_photo(call.message.chat.id, image_url, caption=caption, reply_to_message_id=call.message.message_id)
+        bot.answer_callback_query(call.id)
+    elif action.startswith('boosters'):
+        inventory = bot_data[user_id]['inventory']
+        if inventory['luck_booster'] == 0 and inventory['time_booster'] == 0:
+            edit_func("У вас нет бустеров.", None)
+            bot.answer_callback_query(call.id)
+            return
+        keyboard = types.InlineKeyboardMarkup()
+        if inventory['luck_booster'] > 0:
+            button_luck = types.InlineKeyboardButton(f"🍀 Удача [{inventory['luck_booster']} шт]", callback_data=f"profile_activate_luck_{user_id}")
+            keyboard.add(button_luck)
+        if inventory['time_booster'] > 0:
+            button_time = types.InlineKeyboardButton(f"⚡ Ускоритель [{inventory['time_booster']} шт]", callback_data=f"profile_activate_time_{user_id}")
+            keyboard.add(button_time)
+        edit_func("⚡️ Бустеры", keyboard)
+        bot.answer_callback_query(call.id)
+    elif action.startswith('activate'):
+        booster = rest.split('_')[0]
+        if booster == 'luck':
+            if bot_data[user_id]['inventory']['luck_booster'] > 0:
+                bot_data[user_id]['inventory']['luck_booster'] -= 1
+                bot_data[user_id]['active_luck'] = True
+                save_bot_data()
+                edit_func("🍀 Бустер удачи активирован!", None)
+            else:
+                edit_func("У вас нет бустера удачи.", None)
+        elif booster == 'time':
+            if bot_data[user_id]['inventory']['time_booster'] > 0:
+                bot_data[user_id]['inventory']['time_booster'] -= 1
+                # Reduce cooldown by 1 hour
+                max_last = max((data['last_used'] for data in bot_data[user_id]['cards'].values()), default=0)
+                if max_last > 0:
+                    new_last = max(0, max_last - 3600)
+                    for card_data in bot_data[user_id]['cards'].values():
+                        if card_data['last_used'] == max_last:
+                            card_data['last_used'] = new_last
+                    save_bot_data()
+                edit_func("⚡ Бустер ускорителя активирован!", None)
+            else:
+                edit_func("У вас нет бустера ускорителя.", None)
+        bot.answer_callback_query(call.id)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('shop_'))
+def handle_shop_callback(call):
+    parts = call.data.split('_', 1)
+    booster = parts[1].split('_')[0]
+    user_id = parts[1].split('_')[1]
+    if str(call.from_user.id) != user_id:
+        bot.answer_callback_query(call.id, "Это не ваш магазин.", show_alert=True)
+        return
+    if booster == 'luck':
+        text = "🍀 Бустер «удача»\n\nУвеличивает вероятность выпадения редких карт на 35%\n\n💰 Цена • 20 монет\n⌚️ Время действия • однократное использование"
+        keyboard = types.InlineKeyboardMarkup()
+        buy_button = types.InlineKeyboardButton("Купить", callback_data=f"shop_buy_luck_{user_id}")
+        back_button = types.InlineKeyboardButton("Назад", callback_data=f"shop_back_{user_id}")
+        keyboard.add(buy_button)
+        keyboard.add(back_button)
+    elif booster == 'time':
+        text = "⚡ Бустер «ускоритель времени»\n\nСокращает время ожидания получения карточки на 1 час\n\n💰 Цена • 15 монет\n⌚️ Время действия • однократное использование"
+        keyboard = types.InlineKeyboardMarkup()
+        buy_button = types.InlineKeyboardButton("Купить", callback_data=f"shop_buy_time_{user_id}")
+        back_button = types.InlineKeyboardButton("Назад", callback_data=f"shop_back_{user_id}")
+        keyboard.add(buy_button)
+        keyboard.add(back_button)
+    elif booster == 'back':
+        keyboard = types.InlineKeyboardMarkup()
+        button_luck = types.InlineKeyboardButton("🍀 Удача", callback_data=f"shop_luck_{user_id}")
+        button_time = types.InlineKeyboardButton("⚡ Ускоритель времени", callback_data=f"shop_time_{user_id}")
+        keyboard.add(button_luck)
+        keyboard.add(button_time)
+        bot.edit_message_text("⚡️ Бустеры\nВыберите нужный бустер", call.message.chat.id, call.message.message_id, reply_markup=keyboard)
+        bot.answer_callback_query(call.id)
+        return
+    elif booster == 'buy':
+        item = parts[1].split('_')[1]
+        if item == 'luck':
+            price = 20
+            item_name = 'luck_booster'
+        elif item == 'time':
+            price = 15
+            item_name = 'time_booster'
+        else:
+            return
+        if bot_data[user_id]['coins'] < price:
+            bot.answer_callback_query(call.id, "💰 У вас недостаточно монет", show_alert=True)
+            return
+        bot_data[user_id]['coins'] -= price
+        bot_data[user_id]['inventory'][item_name] += 1
+        save_bot_data()
+        bot.answer_callback_query(call.id, f"Куплено! Осталось монет: {bot_data[user_id]['coins']}", show_alert=True)
+        return
     bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=keyboard)
     bot.answer_callback_query(call.id)
 
