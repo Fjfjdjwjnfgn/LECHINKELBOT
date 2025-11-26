@@ -567,8 +567,8 @@ def give_card(message):
        # Выбор редкости с весами
        current_weights = weights
        if bot_data[user_id]['active_luck']:
-           # Increase rare and epic chances
-           current_weights = [5, 10, 10, 1, 2]  # Boost rare/epic
+           # Increase rare and mythic chances
+           current_weights = [4, 8, 8, 4, 2]  # Boost rare and mythic
            bot_data[user_id]['active_luck'] = False
        selected_rarity = random.choices(rarity_order, weights=current_weights)[0]
        owned_cards = set(bot_data[user_id]['cards'].keys())
@@ -804,7 +804,7 @@ def handle_shop_callback(call):
     user_id = parts[1].split('_')[1]
     # Allow anyone to view, but check for buy
     if booster == 'luck':
-        text = "🍀 Бустер «удача»\n\nУвеличивает вероятность выпадения редких карт на 35%\n\n💰 Цена • 40 монет\n⌚️ Время действия • однократное использование"
+        text = "🍀 Бустер «удача»\n\nУвеличивает вероятность выпадения редких и мифических карт\n\n💰 Цена • 40 монет\n⌚️ Время действия • однократное использование"
         keyboard = types.InlineKeyboardMarkup()
         buy_button = types.InlineKeyboardButton("Купить", callback_data=f"shop_buy_luck_{user_id}")
         back_button = types.InlineKeyboardButton("Назад", callback_data=f"shop_back_{user_id}")
