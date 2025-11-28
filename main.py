@@ -901,8 +901,8 @@ def handle_profile_callback(call):
             bot.answer_callback_query(call.id)
             return
         keyboard = types.InlineKeyboardMarkup()
-        for card_name in cards_of_rarity:
-            button = types.InlineKeyboardButton(card_name, callback_data=f"profile_card_{card_name}_{user_id}")
+        for i, card_name in enumerate(cards_of_rarity):
+            button = types.InlineKeyboardButton(card_name, callback_data=f"profile_card_{i}_{user_id}")
             keyboard.add(button)
         back_button = types.InlineKeyboardButton("Назад", callback_data=f"profile_cards_{user_id}")
         keyboard.add(back_button)
