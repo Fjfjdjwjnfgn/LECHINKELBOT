@@ -158,8 +158,8 @@ cards = [
     {
         "name": "Лечинкель с вкусняшкой",
         "rarity": "Редкий",
-        "points": 10000,
-        "coins": 30,
+        "points": 250,
+        "coins": 15,
         "image_url": 'https://ltdfoto.ru/images/2025/11/25/6044.jpg',
     },
     {
@@ -179,8 +179,8 @@ cards = [
     {
         "name": "Нацист Лечинкель",
         "rarity": "Редкий",
-        "points": 500,
-        "coins": 25,
+        "points": 250,
+        "coins": 15,
         "image_url": 'https://ltdfoto.ru/images/2025/11/25/6051.md.jpg',
     },
 ]
@@ -194,9 +194,9 @@ rarities = {
 }
 
 for card in cards:
-    rarity = card['rarity'].strip()  # Убираем пробелы
+    rarity = card['rarity'].strip() 
     if rarity == "Мифическая":
-        rarity = "Мифический"  # Унифицируем
+        rarity = "Мифический"  
     if rarity in rarities:
         rarities[rarity].append(card)
 
@@ -306,6 +306,21 @@ def set_nickname(message):
     else:
         bot.send_message(message.chat.id, "Пожалуйста, укажите новый никнейм после команды /name.", reply_to_message_id=message.message_id)
 
+@bot.message_handler(commands=['top'])
+def send_top(message):
+    user_id = str(message.from_user.id)
+    logging.debug(f"User {user_id} requested top")
+
+    text = "🏆 Топ 10 игроков этой группы\n\n> Выберите по какому значению показать топ"
+
+    keyboard = types.InlineKeyboardMarkup()
+    button1 = types.InlineKeyboardButton("По очкам", callback_data=f"top_points_{user_id}")
+    button2 = types.InlineKeyboardButton("По картам", callback_data=f"top_cards_{user_id}")
+    button3 = types.InlineKeyboardButton("По монетам", callback_data=f"top_coins_{user_id}")
+    keyboard.add(button1, button2, button3)
+
+    bot.send_message(message.chat.id, text, reply_markup=keyboard, reply_to_message_id=message.message_id)
+
 @bot.message_handler(func=lambda message: message.text.lower() in ['лечинкель', 'карту, сэр', 'карту сэр', 'карту, сэр.', 'получить карту']) # команды чтоб дало вам карточки
 def give_card(message):
    user_id = str(message.from_user.id)
@@ -372,6 +387,44 @@ def give_card(message):
    except Exception as e:
        logging.error(f"Error giving card to user {user_id}: {e}")
        bot.send_message(message.chat.id, "Произошла ошибка при получении карточки. Попробуйте еще раз.", reply_to_message_id=message.message_id)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('top_'))
+def handle_top_callback(call):
+    parts = call.data.split('_')
+    if len(parts) != 3:
+        return
+    criteria = parts[1]
+    initiator_id = parts[2]
+
+    if str(call.from_user.id) != initiator_id:
+        bot.answer_callback_query(call.id, "Эта команда доступна только тому, кто её вызвал.", show_alert=True)
+        return
+
+    # Get top 10
+    users = []
+    for user_id, data in bot_data.items():
+        if criteria == 'points':
+            value = data.get('points', 0)
+        elif criteria == 'cards':
+            value = len(data.get('cards', {}))
+        elif criteria == 'coins':
+            value = data.get('coins', 0)
+        else:
+            return
+        users.append((user_id, data.get('nickname', 'Unknown'), value))
+
+    # Sort descending
+    users.sort(key=lambda x: x[2], reverse=True)
+    top_10 = users[:10]
+
+    # Format text
+    criteria_name = {'points': 'очкам', 'cards': 'картам', 'coins': 'монетам'}[criteria]
+    text = f"🏆 Топ 10 игроков по {criteria_name}\n\n"
+    for i, (user_id, nickname, value) in enumerate(top_10, 1):
+        text += f"{i}. {nickname} — {value}\n"
+
+    bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=None)
+    bot.answer_callback_query(call.id)
 
 # Новый обработчик для постов в канале (через группу обсуждений)
 @bot.message_handler(func=lambda m: m.sender_chat and m.sender_chat.type == 'channel' and m.chat.type == 'supergroup')
