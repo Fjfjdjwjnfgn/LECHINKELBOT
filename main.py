@@ -398,7 +398,7 @@ def send_help(message):
         f"Тут ты можешь собирать карточки лица Лечинкеля и соревноваться с другими игроками.\n\n"
         f"Команды:\n"
         f"👤 /profile — ваш профиль\n"
-        f"🎰 /lottery — лотерея (20 монет)\n"
+        f"🎰 /lottery [ставка] — лотерея (по умолчанию 20 монет)\n"
         f"✨ /name [ник] — изменить никнейм\n"
         f"Для получения карты отправьте любую из команды:\n"
         f"лечинкель\n" # сюда всякие хелп команды
@@ -617,25 +617,54 @@ def play_lottery(message):
         bot_data[user_id]['inventory'] = {'luck_booster': 0, 'time_booster': 0}
     if 'active_luck' not in bot_data[user_id]:
         bot_data[user_id]['active_luck'] = False
-    if bot_data[user_id]['coins'] < 20:
-        bot.send_message(message.chat.id, "💰 У вас недостаточно монет для лотереи (нужно 20 монет).", reply_to_message_id=message.message_id)
+
+    # Parse bet amount
+    parts = message.text.split()
+    if len(parts) > 1:
+        try:
+            bet = int(parts[1])
+            if bet < 1:
+                bot.send_message(message.chat.id, "Ставка должна быть положительным числом.", reply_to_message_id=message.message_id)
+                return
+        except ValueError:
+            bot.send_message(message.chat.id, "Неверный формат ставки. Используйте /lottery <число>", reply_to_message_id=message.message_id)
+            return
+    else:
+        bet = 20  # default
+
+    if bot_data[user_id]['coins'] < bet:
+        bot.send_message(message.chat.id, f"💰 У вас недостаточно монет для лотереи (нужно {bet} монет).", reply_to_message_id=message.message_id)
         return
-    bot_data[user_id]['coins'] -= 20
-    # Rewards: 0: nothing, 1: 50 coins, 2: luck, 3: time
-    reward = random.choices([0, 1, 2, 3], weights=[80, 10, 5, 5])[0]
+    bot_data[user_id]['coins'] -= bet
+
+    # Scale rewards and chances based on bet
+    multiplier = bet // 20  # for bet 20, multiplier 1, for 40, 2, etc.
+    if multiplier < 1:
+        multiplier = 1
+
+    # Balanced chances
+    nothing_chance = 60
+    weights = [nothing_chance, 20, 10, 10]  # 40% win chance
+
+    # Rewards: 0: nothing, 1: coins (variable), 2: luck, 3: time
+    reward = random.choices([0, 1, 2, 3], weights=weights)[0]
     if reward == 0:
         text = "😔 К сожалению, вы ничего не выиграли. Попробуйте ещё раз!"
     elif reward == 1:
-        bot_data[user_id]['coins'] += 50
-        text = "🎉 Поздравляем! Вы выиграли 50 монет!"
+        coins_won = random.randint(10, bet * 2)  # can be profit or loss
+        bot_data[user_id]['coins'] += coins_won
+        text = f"🎉 Поздравляем! Вы выиграли {coins_won} монет!"
     elif reward == 2:
-        bot_data[user_id]['inventory']['luck_booster'] += 1
+        luck_won = 1
+        bot_data[user_id]['inventory']['luck_booster'] += luck_won
         text = "🍀 Поздравляем! Вы выиграли бустер удачи!"
     elif reward == 3:
-        bot_data[user_id]['inventory']['time_booster'] += 1
+        time_won = 1
+        bot_data[user_id]['inventory']['time_booster'] += time_won
         text = "⚡ Поздравляем! Вы выиграли бустер ускоритель времени!"
+
     save_bot_data()
-    bot.send_message(message.chat.id, f"🎰 Вы сыграли в лотерею!\n\n{text}\n\n💰 Осталось монет: {bot_data[user_id]['coins']}", reply_to_message_id=message.message_id)
+    bot.send_message(message.chat.id, f"🎰 Вы сыграли в лотерею (ставка {bet} монет)!\n\n{text}\n\n💰 Осталось монет: {bot_data[user_id]['coins']}", reply_to_message_id=message.message_id)
 
 @bot.message_handler(func=lambda message: message.text.lower() in ['лечинкель', 'карту, сэр', 'карту сэр', 'карту, сэр.', 'получить карту']) # команды чтоб дало вам карточки
 def give_card(message):
@@ -657,27 +686,60 @@ def give_card(message):
    if 'active_luck' not in bot_data[user_id]:
        bot_data[user_id]['active_luck'] = False
 
-   try:
-       current_time = time.time()
-       
-       last_used_time = max(
-           (bot_data[user_id]['cards'][card_name]['last_used'] for card_name in bot_data[user_id]['cards']),
-           default=0
+   current_time = time.time()
+
+   # Check for pending card from previous error
+   if 'pending_card' in bot_data[user_id]:
+       pending = bot_data[user_id]['pending_card']
+       card = pending['card']
+       selected_rarity = pending['rarity']
+       points_earned = card['points']
+       coins_earned = card['coins']
+
+       bot_data[user_id]['cards'][card["name"]] = {
+           "last_used": current_time,
+           "rarity": selected_rarity,
+           "points_earned": points_earned,
+           "coins_earned": coins_earned
+       }
+       bot_data[user_id]['last_card'] = card["name"]
+
+       bot_data[user_id]['points'] += points_earned
+       bot_data[user_id]['coins'] += coins_earned
+       save_bot_data()
+
+       del bot_data[user_id]['pending_card']
+
+       response = (
+           f"🃏 Карточка «{card['name']}» добавлена (повтор после ошибки).\n\n"
+           f"💎 Редкость • {selected_rarity}\n"
+           f"✨ Очки • +{points_earned} [{bot_data[user_id]['points']}]\n"
+           f"💰 Монеты • +{coins_earned} [{bot_data[user_id]['coins']}]\n\n"
+           f"🎁 Получите следующую карточку через три часа!"
        )
 
-       if current_time - last_used_time < 3 * 3600:  # типа задержка
-           remaining_time = (3 * 3600) - (current_time - last_used_time)
-           remaining_hours = remaining_time // 3600
-           remaining_minutes = (remaining_time % 3600) // 60
-           remaining_seconds = remaining_time % 60
-            
-           response = (
-               "Вы осмотрелись, но не увидели рядом лица Лечинкеля 👀\n\n"
-               f"⏳ Подождите {int(remaining_hours)}ч. {int(remaining_minutes)}мин. {int(remaining_seconds)}сек., чтобы попробовать снова." # если ты уже использовал карточки
-           )
-           bot.send_message(message.chat.id, response, reply_to_message_id=message.message_id)
-           return
+       bot.send_photo(message.chat.id, card["image_url"], caption=response, reply_to_message_id=message.message_id)
+       return
 
+   last_used_time = max(
+       (bot_data[user_id]['cards'][card_name]['last_used'] for card_name in bot_data[user_id]['cards']),
+       default=0
+   )
+
+   if current_time - last_used_time < 3 * 3600:  # типа задержка
+       remaining_time = (3 * 3600) - (current_time - last_used_time)
+       remaining_hours = remaining_time // 3600
+       remaining_minutes = (remaining_time % 3600) // 60
+       remaining_seconds = remaining_time % 60
+
+       response = (
+           "Вы осмотрелись, но не увидели рядом лица Лечинкеля 👀\n\n"
+           f"⏳ Подождите {int(remaining_hours)}ч. {int(remaining_minutes)}мин. {int(remaining_seconds)}сек., чтобы попробовать снова." # если ты уже использовал карточки
+       )
+       bot.send_message(message.chat.id, response, reply_to_message_id=message.message_id)
+       return
+
+   try:
        # Выбор редкости с весами
        current_weights = weights
        if bot_data[user_id]['active_luck']:
@@ -696,6 +758,9 @@ def give_card(message):
        points_earned = card['points']
        coins_earned = card['coins']
 
+       # Store pending in case of error
+       bot_data[user_id]['pending_card'] = {'card': card, 'rarity': selected_rarity}
+
        bot_data[user_id]['cards'][card["name"]] = {
            "last_used": current_time,
            "rarity": selected_rarity,
@@ -703,10 +768,12 @@ def give_card(message):
            "coins_earned": coins_earned
        }
        bot_data[user_id]['last_card'] = card["name"]
-       
+
        bot_data[user_id]['points'] += points_earned
        bot_data[user_id]['coins'] += coins_earned
-       # Save periodically
+       save_bot_data()
+
+       del bot_data[user_id]['pending_card']
 
        response = (
            f"🃏 Карточка «{card['name']}» добавлена.\n\n"
@@ -720,7 +787,8 @@ def give_card(message):
 
    except Exception as e:
        logging.error(f"Error giving card to user {user_id}: {e}")
-       bot.send_message(message.chat.id, "Произошла ошибка при получении карточки. Попробуйте еще раз.", reply_to_message_id=message.message_id)
+       # Pending card is stored, no cooldown applied
+       bot.send_message(message.chat.id, "Произошла ошибка при получении карточки. Попробуйте еще раз (без cooldown).", reply_to_message_id=message.message_id)
 
 @bot.message_handler(func=lambda message: admin_state.get('mailing') and message.from_user.username and message.from_user.username.lower() in ['clamsurr', 'kamarkahetman'] and message.chat.type == 'private')
 def handle_admin_mailing(message):
