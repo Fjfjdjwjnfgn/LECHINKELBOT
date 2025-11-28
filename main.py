@@ -340,7 +340,7 @@ cards = [
         "rarity": "Редкий",
         "points": 250,
         "coins": 15,
-        "image_url": 'https://ltdfoto.ru/images/2025/11/28/photo_2025-11-28_17-33-33.jpg',
+        "image_url": 'https://ltdfoto.ru/images/2025/11/28/photo_2025-11-28_17-28-24.jpg',
     },
 ]
 # Группировка карт по редкостям (с нормализацией названий)
