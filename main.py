@@ -296,7 +296,7 @@ cards = [
     {
         "name": "Лечинкель в древние времена",
         "rarity": "Мифический",
-        "points": 1000,
+        "points": 10000,
         "coins": 100,
         "image_url": 'https://ltdfoto.ru/images/2025/11/28/photo_2025-11-28_17-08-43.jpg',
     },
@@ -317,7 +317,7 @@ cards = [
     {
         "name": "Лечинкель в ГиперБорее",
         "rarity": "Мифический",
-        "points": 1000,
+        "points": 10000,
         "coins": 100,
         "image_url": 'https://ltdfoto.ru/images/2025/11/28/photo_2025-11-28_17-20-13.jpg',
     },
@@ -340,7 +340,7 @@ cards = [
         "rarity": "Редкий",
         "points": 250,
         "coins": 15,
-        "image_url": 'https://ltdfoto.ru/images/2025/11/28/photo_2025-11-28_17-28-24.jpg',
+        "image_url": 'https://ltdfoto.ru/images/2025/11/28/photo_2025-11-28_17-33-33.jpg',
     },
 ]
 # Группировка карт по редкостям (с нормализацией названий)
@@ -1156,6 +1156,7 @@ def handle_new_channel_post_in_group(message):
 if __name__ == '__main__':
     while True:
         try:
+            bot.delete_webhook()
             bot.polling(none_stop=True)
         except Exception as e:
             logging.error(f"Bot crashed: {e}, restarting in 5 seconds...")
