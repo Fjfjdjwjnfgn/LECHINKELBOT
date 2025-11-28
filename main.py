@@ -4,9 +4,10 @@ import random
 import logging
 import json
 import time
+import threading
 import string
 
-TOKEN = "8501222332:AAG4yM_GDfB3TpJ-uikLTL5fE8FJsuqxD8g" 
+TOKEN = "8501222332:AAG4yM_GDfB3TpJ-uikLTL5fE8FJsuqxD8g"
 bot = telebot.TeleBot(TOKEN)
 
 logging.basicConfig(level=logging.DEBUG)
@@ -47,6 +48,17 @@ def save_promo_data():
 
 bot_data = load_bot_data()
 promo_data = load_promo_data()
+
+def periodic_save():
+    while True:
+        time.sleep(60)
+        try:
+            save_bot_data()
+            logging.debug("Periodic save completed")
+        except Exception as e:
+            logging.error(f"Error in periodic save: {e}")
+
+threading.Thread(target=periodic_save, daemon=True).start()
 cards = [
     {
         "name": "Лечинкель Гитлер", #софт
@@ -309,9 +321,9 @@ def send_welcome(message):
         f"👋 Привет, {bot_data[user_id]['nickname']}! Я бот, в котором ты можешь собирать уникальные карточки и соревноваться с другими игроками.\n\n"
         f"Чтобы начать, добавь меня в группу, нажав на кнопку ниже."
     )
-    
+
     keyboard = types.InlineKeyboardMarkup()
-    button = types.InlineKeyboardButton("➕ Добавить бота в чат", url='https://t.me/Lechinkelcards_bot?startgroup=new') #тут менять ссылку на бота 
+    button = types.InlineKeyboardButton("➕ Добавить бота в чат", url='https://t.me/Lechinkelcards_bot?startgroup=new') #тут менять ссылку на бота
     keyboard.add(button)
 
     bot.send_message(message.chat.id, welcome_message, reply_markup=keyboard, reply_to_message_id=message.message_id)
@@ -592,7 +604,7 @@ def give_card(message):
        
        bot_data[user_id]['points'] += points_earned
        bot_data[user_id]['coins'] += coins_earned
-       save_bot_data()
+       # Save periodically
 
        response = (
            f"🃏 Карточка «{card['name']}» добавлена.\n\n"
@@ -967,4 +979,9 @@ def handle_new_channel_post_in_group(message):
     bot.reply_to(message, text)
 
 if __name__ == '__main__':
-   bot.polling(none_stop=True)
+    while True:
+        try:
+            bot.polling(none_stop=True)
+        except Exception as e:
+            logging.error(f"Bot crashed: {e}, restarting in 5 seconds...")
+            time.sleep(5)
