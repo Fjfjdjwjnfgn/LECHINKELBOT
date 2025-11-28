@@ -6,6 +6,9 @@ import json
 import time
 import threading
 import string
+import os
+import sys
+import atexit
 
 TOKEN = "8501222332:AAG4yM_GDfB3TpJ-uikLTL5fE8FJsuqxD8g"
 bot = telebot.TeleBot(TOKEN)
@@ -59,6 +62,15 @@ def periodic_save():
             logging.error(f"Error in periodic save: {e}")
 
 threading.Thread(target=periodic_save, daemon=True).start()
+
+def check_single_instance():
+    pid_file = 'bot.pid'
+    if os.path.exists(pid_file):
+        logging.error("Another instance is running (PID file exists). Exiting.")
+        sys.exit(1)
+    with open(pid_file, 'w') as f:
+        f.write(str(os.getpid()))
+    atexit.register(lambda: os.remove(pid_file) if os.path.exists(pid_file) else None)
 cards = [
     {
         "name": "Лечинкель Гитлер", #софт
@@ -1154,6 +1166,7 @@ def handle_new_channel_post_in_group(message):
     bot.reply_to(message, text)
 
 if __name__ == '__main__':
+    check_single_instance()
     while True:
         try:
             bot.delete_webhook()
