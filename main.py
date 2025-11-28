@@ -279,6 +279,69 @@ cards = [
         "coins": 50,
         "image_url": 'https://ltdfoto.ru/images/2025/11/26/photo_2025-11-26_16-50-09.jpg',
     },
+    {
+        "name": "Лечинкель Вояк",
+        "rarity": "Редкий",
+        "points": 250,
+        "coins": 15,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/28/photo_2025-11-28_16-57-34.jpg',
+    },
+    {
+        "name": "Очкарик Лечинкель",
+        "rarity": "Обычный",
+        "points": 50,
+        "coins": 5,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/28/photo_2025-11-28_17-01-20.jpg',
+    },
+    {
+        "name": "Лечинкель в древние времена",
+        "rarity": "Мифический",
+        "points": 1000,
+        "coins": 100,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/28/photo_2025-11-28_17-08-43.jpg',
+    },
+    {
+        "name": "Лечинкель в аниматронике!",
+        "rarity": "Легендарный",
+        "points": 1000,
+        "coins": 50,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/28/photo_2025-11-28_17-13-18.jpg',
+    },
+    {
+        "name": "Лечинкель у себя дома",
+        "rarity": "Редкий",
+        "points": 250,
+        "coins": 15,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/28/photo_2025-11-28_17-15-36.jpg',
+    },
+    {
+        "name": "Лечинкель в ГиперБорее",
+        "rarity": "Мифический",
+        "points": 1000,
+        "coins": 100,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/28/photo_2025-11-28_17-20-13.jpg',
+    },
+    {
+        "name": "Напуганный Лечинкель",
+        "rarity": "Редкий",
+        "points": 250,
+        "coins": 15,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/28/photo_2025-11-28_17-22-13.jpg',
+    },
+    {
+        "name": "Соник Лечинкель!",
+        "rarity": "Легендарный",
+        "points": 1000,
+        "coins": 50,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/28/photo_2025-11-28_17-26-14.jpg',
+    },
+    {
+        "name": "Лечинкель марио",
+        "rarity": "Редкий",
+        "points": 250,
+        "coins": 15,
+        "image_url": 'https://ltdfoto.ru/images/2025/11/28/photo_2025-11-28_17-28-24.jpg',
+    },
 ]
 # Группировка карт по редкостям (с нормализацией названий)
 rarities = {
@@ -335,6 +398,7 @@ def send_help(message):
         f"Тут ты можешь собирать карточки лица Лечинкеля и соревноваться с другими игроками.\n\n"
         f"Команды:\n"
         f"👤 /profile — ваш профиль\n"
+        f"🎰 /lottery — лотерея (20 монет)\n"
         f"✨ /name [ник] — изменить никнейм\n"
         f"Для получения карты отправьте любую из команды:\n"
         f"лечинкель\n" # сюда всякие хелп команды
@@ -534,6 +598,44 @@ def send_admin(message):
     keyboard.add(button_create_promo)
     keyboard.add(button_list_promo)
     bot.send_message(message.chat.id, "Админ панель:", reply_markup=keyboard)
+
+@bot.message_handler(commands=['lottery'])
+def play_lottery(message):
+    user_id = str(message.from_user.id)
+    if user_id not in bot_data:
+        bot_data[user_id] = {
+            'balance': 0,
+            'cards': {},
+            'points': 0,
+            'coins': 0,
+            'nickname': message.from_user.username if message.from_user.username else message.from_user.first_name,
+            'inventory': {'luck_booster': 0, 'time_booster': 0},
+            'active_luck': False
+        }
+        save_bot_data()
+    if 'inventory' not in bot_data[user_id]:
+        bot_data[user_id]['inventory'] = {'luck_booster': 0, 'time_booster': 0}
+    if 'active_luck' not in bot_data[user_id]:
+        bot_data[user_id]['active_luck'] = False
+    if bot_data[user_id]['coins'] < 20:
+        bot.send_message(message.chat.id, "💰 У вас недостаточно монет для лотереи (нужно 20 монет).", reply_to_message_id=message.message_id)
+        return
+    bot_data[user_id]['coins'] -= 20
+    # Rewards: 0: nothing, 1: 50 coins, 2: luck, 3: time
+    reward = random.choices([0, 1, 2, 3], weights=[80, 10, 5, 5])[0]
+    if reward == 0:
+        text = "😔 К сожалению, вы ничего не выиграли. Попробуйте ещё раз!"
+    elif reward == 1:
+        bot_data[user_id]['coins'] += 50
+        text = "🎉 Поздравляем! Вы выиграли 50 монет!"
+    elif reward == 2:
+        bot_data[user_id]['inventory']['luck_booster'] += 1
+        text = "🍀 Поздравляем! Вы выиграли бустер удачи!"
+    elif reward == 3:
+        bot_data[user_id]['inventory']['time_booster'] += 1
+        text = "⚡ Поздравляем! Вы выиграли бустер ускоритель времени!"
+    save_bot_data()
+    bot.send_message(message.chat.id, f"🎰 Вы сыграли в лотерею!\n\n{text}\n\n💰 Осталось монет: {bot_data[user_id]['coins']}", reply_to_message_id=message.message_id)
 
 @bot.message_handler(func=lambda message: message.text.lower() in ['лечинкель', 'карту, сэр', 'карту сэр', 'карту, сэр.', 'получить карту']) # команды чтоб дало вам карточки
 def give_card(message):
@@ -961,6 +1063,7 @@ def handle_admin_callback(call):
             'duration': duration,
             'activations': activations,
             'used': 0,
+
             'created': time.time()
         })
         save_promo_data()
@@ -985,4 +1088,3 @@ if __name__ == '__main__':
         except Exception as e:
             logging.error(f"Bot crashed: {e}, restarting in 5 seconds...")
             time.sleep(5)
-
