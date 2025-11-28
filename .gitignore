@@ -1,0 +1,7 @@
+bot_data.json
+promo_data.json
+random_rarity.py
+main_test.py
+__pycache__/
+*.pyc
+nohup.out
