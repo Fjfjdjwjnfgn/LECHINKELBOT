@@ -275,8 +275,8 @@ cards = [
     {
         "name": "Лечинкель КФС",
         "rarity": "Легендарный",
-        "points": 50,
-        "coins": 5,
+        "points": 1000,
+        "coins": 50,
         "image_url": 'https://ltdfoto.ru/images/2025/11/26/photo_2025-11-26_16-50-09.jpg',
     },
 ]
@@ -985,3 +985,4 @@ if __name__ == '__main__':
         except Exception as e:
             logging.error(f"Bot crashed: {e}, restarting in 5 seconds...")
             time.sleep(5)
+
