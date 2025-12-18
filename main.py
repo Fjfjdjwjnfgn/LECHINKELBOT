@@ -305,6 +305,11 @@ def redeem_promo(message):
     if 'created' in promo and time.time() - promo['created'] > promo['duration'] * 86400:
         bot.send_message(message.chat.id, "Промокод истек.", reply_to_message_id=message.message_id)
         return
+    if 'used_by' not in promo:
+        promo['used_by'] = []
+    if user_id in promo['used_by']:
+        bot.send_message(message.chat.id, "Вы уже использовали этот промокод.", reply_to_message_id=message.message_id)
+        return
     if promo['used'] >= promo['activations']:
         bot.send_message(message.chat.id, "Промокод исчерпан.", reply_to_message_id=message.message_id)
         return
@@ -323,6 +328,7 @@ def redeem_promo(message):
     }
     bot_data[user_id]['points'] += points
     bot_data[user_id]['coins'] += coins
+    promo['used_by'].append(user_id)
     promo['used'] += 1
     save_bot_data()
     save_promo_data()
@@ -922,7 +928,7 @@ def handle_admin_callback(call):
             'duration': duration,
             'activations': activations,
             'used': 0,
-
+            'used_by': [],
             'created': time.time()
         })
         save_promo_data()
