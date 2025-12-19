@@ -82,9 +82,16 @@ def periodic_save():
 threading.Thread(target=periodic_save, daemon=True).start()
 
 def check_single_instance():
-
+    # Commented out for development/testing
+    # pid_file = 'bot.pid'
+    # if os.path.exists(pid_file):
+    #     logging.error("Another instance is running (PID file exists). Exiting.")
+    #     sys.exit(1)
+    # with open(pid_file, 'w') as f:
+    #     f.write(str(os.getpid()))
+    # atexit.register(lambda: os.remove(pid_file) if os.path.exists(pid_file) else None)
     pass
-
+# Группировка карт по редкостям (с нормализацией названий)
 rarities = {
     "Эпический": [],
     "Редкий": [],
@@ -100,7 +107,7 @@ for card in cards:
     if rarity in rarities:
         rarities[rarity].append(card)
 
-
+# Порядок редкостей и веса
 rarity_order = ["Эпический", "Редкий", "Обычный", "Мифический", "Легендарный"]
 weights = [3, 6, 10, 1, 2]
 
@@ -142,7 +149,7 @@ def send_help(message):
         f"🎰 /lottery [ставка] — лотерея (по умолчанию 20 монет)\n"
         f"✨ /name [ник] — изменить никнейм\n"
         f"Для получения карты отправьте любую из команды:\n"
-        f"лечинкель\n" 
+        f"лечинкель\n" # сюда всякие хелп команды
         f"карту, сэр\n"
         f"карту сэр\n"
         f"карту, сэр.\n"
@@ -314,7 +321,7 @@ def redeem_promo(message):
     points = card['points']
     coins = card['coins']
     bot_data[user_id]['cards'][card["name"]] = {
-        "last_used": 0,  
+        "last_used": 0,  # No cooldown for promo
         "rarity": rarity,
         "points_earned": points,
         "coins_earned": coins
@@ -369,7 +376,7 @@ def play_lottery(message):
     if 'active_luck' not in bot_data[user_id]:
         bot_data[user_id]['active_luck'] = False
 
-    
+    # Parse bet amount
     parts = message.text.split()
     if len(parts) > 1:
         try:
@@ -381,26 +388,27 @@ def play_lottery(message):
             bot.send_message(message.chat.id, "Неверный формат ставки. Используйте /lottery <число>", reply_to_message_id=message.message_id)
             return
     else:
-        bet = 20  
+        bet = 20  # default
 
     if bot_data[user_id]['coins'] < bet:
         bot.send_message(message.chat.id, f"💰 У вас недостаточно монет для лотереи (нужно {bet} монет).", reply_to_message_id=message.message_id)
         return
     bot_data[user_id]['coins'] -= bet
 
-    
-    multiplier = bet // 20  
+    # Scale rewards and chances based on bet
+    multiplier = bet // 20  # for bet 20, multiplier 1, for 40, 2, etc.
     if multiplier < 1:
         multiplier = 1
 
-    
-    weights = [95, 5]  
+    # Casino-like chances: mostly lose, small chance to win coins
+    weights = [95, 5]  # 5% win chance
 
+    # Rewards: 0: nothing, 1: coins (variable)
     reward = random.choices([0, 1], weights=weights)[0]
     if reward == 0:
         text = "😔 К сожалению, вы ничего не выиграли. Попробуйте ещё раз!"
     elif reward == 1:
-        coins_won = random.randint(bet, bet * 3)  
+        coins_won = random.randint(bet, bet * 3)  # profit
         bot_data[user_id]['coins'] += coins_won
         text = f"🎉 Поздравляем! Вы выиграли {coins_won} монет!"
 
@@ -429,7 +437,7 @@ def give_card(message):
 
    current_time = time.time()
 
-   
+   # Check for pending card from previous error
    if 'pending_card' in bot_data[user_id]:
        pending = bot_data[user_id]['pending_card']
        card = pending['card']
@@ -469,7 +477,7 @@ def give_card(message):
        default=0
    )
 
-   if current_time - last_used_time < 3 * 3600:  
+   if current_time - last_used_time < 3 * 3600:  # типа задержка
        remaining_time = (3 * 3600) - (current_time - last_used_time)
        remaining_hours = remaining_time // 3600
        remaining_minutes = (remaining_time % 3600) // 60
@@ -483,11 +491,11 @@ def give_card(message):
        return
 
    try:
-       
+       # Выбор редкости с весами
        current_weights = weights
        if bot_data[user_id]['active_luck']:
-          
-           current_weights = [4, 8, 8, 4, 2] 
+           # Increase rare and mythic chances
+           current_weights = [4, 8, 8, 4, 2]  # Boost rare and mythic
            bot_data[user_id]['active_luck'] = False
        selected_rarity = random.choices(rarity_order, weights=current_weights)[0]
        owned_cards = set(bot_data[user_id]['cards'].keys())
@@ -495,13 +503,13 @@ def give_card(message):
        if not available_cards:
            available_cards = [c for c in rarities[selected_rarity] if c["name"] not in owned_cards]
        if not available_cards:
-           available_cards = rarities[selected_rarity]  
+           available_cards = rarities[selected_rarity]  # If all owned, allow duplicate
        card = random.choice(available_cards)
 
        points_earned = card['points']
        coins_earned = card['coins']
 
-       
+       # Store pending in case of error
        bot_data[user_id]['pending_card'] = {'card': card, 'rarity': selected_rarity}
 
        bot_data[user_id]['cards'][card["name"]] = {
@@ -532,7 +540,7 @@ def give_card(message):
 
    except Exception as e:
        logging.error(f"Error giving card to user {user_id}: {e}")
-       
+       # Pending card is stored, no cooldown applied
        bot.send_message(message.chat.id, "Произошла ошибка при получении карточки. Попробуйте еще раз (без cooldown).", reply_to_message_id=message.message_id)
 
 @bot.message_handler(func=lambda message: admin_state.get('mailing') and message.from_user.username and message.from_user.username.lower() in ['clamsurr', 'kamarkahetman'] and message.chat.type == 'private')
@@ -575,7 +583,7 @@ def handle_admin_add_card(message):
     elif step == 'points':
         try:
             state['points'] = int(message.text)
-            
+            # Add the card
             new_card = {
                 'name': state['name'],
                 'rarity': state['rarity'],
@@ -585,7 +593,7 @@ def handle_admin_add_card(message):
             }
             cards.append(new_card)
             save_cards()
-
+            # Update rarities
             rarities[state['rarity']].append(new_card)
             bot.send_message(message.chat.id, "КАРТОЧКА УСПЕШНО ДОБАВЛЕНА")
             del admin_state['add_card']
@@ -616,6 +624,7 @@ def handle_top_callback(call):
         bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=keyboard)
         bot.answer_callback_query(call.id)
 
+    # Get top 10
     users = []
     for user_id, data in bot_data.items():
         if criteria == 'points':
@@ -628,9 +637,11 @@ def handle_top_callback(call):
             return
         users.append((user_id, data.get('nickname', 'Unknown'), value))
 
+    # Sort descending
     users.sort(key=lambda x: x[2], reverse=True)
     top_10 = users[:10]
 
+    # Format text
     criteria_name = {'points': 'очкам', 'cards': 'картам', 'coins': 'монетам'}[criteria]
     text = f"🏆 Топ 10 игроков по {criteria_name}\n\n"
     for i, (user_id, nickname, value) in enumerate(top_10, 1):
@@ -707,7 +718,7 @@ def handle_profile_callback(call):
         bot.send_photo(call.message.chat.id, image_url, caption=caption, reply_to_message_id=call.message.message_id)
         bot.answer_callback_query(call.id)
     elif action.startswith('back'):
-       
+        # Back to profile main
         profile_text = (
            f"Профиль «{bot_data[user_id]['nickname']}»\n\n"
            f"🔎 ID • {user_id}\n"
@@ -752,7 +763,7 @@ def handle_profile_callback(call):
         elif booster == 'time':
             if bot_data[user_id]['inventory']['time_booster'] > 0:
                 bot_data[user_id]['inventory']['time_booster'] -= 1
-                
+                # Reduce cooldown by 1 hour
                 max_last = max((data['last_used'] for data in bot_data[user_id]['cards'].values()), default=0)
                 if max_last > 0:
                     new_last = max(0, max_last - 3600)
@@ -770,9 +781,7 @@ def handle_shop_callback(call):
     parts = call.data.split('_', 1)
     booster = parts[1].split('_')[0]
     user_id = parts[1].split('_')[1]
-    if str(call.from_user.id) != user_id:
-        bot.answer_callback_query(call.id, "Это не ваш магазин.", show_alert=True)
-        return
+    # Allow anyone to view, but check for buy
     if booster == 'luck':
         text = "🍀 Бустер «удача»\n\nУвеличивает вероятность выпадения редких и мифических карт\n\n💰 Цена • 40 монет\n⌚️ Время действия • однократное использование"
         keyboard = types.InlineKeyboardMarkup()
@@ -962,7 +971,7 @@ def handle_admin_callback(call):
         if index < len(cards):
             deleted_card = cards.pop(index)
             save_cards()
-            
+            # Update rarities
             rarities = {k: [] for k in rarities}
             for card in cards:
                 rarity = card['rarity'].strip()
@@ -995,15 +1004,13 @@ def handle_admin_callback(call):
         bot.edit_message_text("Админ панель:", call.message.chat.id, call.message.message_id, reply_markup=keyboard)
         bot.answer_callback_query(call.id)
 
+# Новый обработчик для постов в канале (через группу обсуждений)
 @bot.message_handler(func=lambda m: m.sender_chat and m.sender_chat.type == 'channel' and m.chat.type == 'supergroup')
 def handle_new_channel_post_in_group(message):
     phrases = [
         "Напиши «Лечинкель», чтобы открыть свою уникальную карточку!",
         "Ждёшь свою карточку? Напиши «Лечинкель» прямо сейчас!",
         "Получи свою карточку! Просто напиши «Лечинкель» 📜"
-        "Карточка спряталась. Введи кодовое слово «Лечинкель» 🔐"
-        "Хочешь магию? Напиши «Лечинкель» и карточка появится ✨"
-        "Лечинкель зовёт тебя… ответь ему написав "Лечинкель" 👀"
     ]
     text = random.choice(phrases)
     bot.reply_to(message, text)
