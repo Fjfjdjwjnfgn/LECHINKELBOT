@@ -231,13 +231,6 @@
         "image_url": "https://ltdfoto.ru/images/2025/11/28/photo_2025-11-28_17-08-43.jpg"
     },
     {
-        "name": "Лечинкель в аниматронике!",
-        "rarity": "Легендарный",
-        "points": 1000,
-        "coins": 50,
-        "image_url": "https://ltdfoto.ru/images/2025/11/28/photo_2025-11-28_17-13-18.jpg"
-    },
-    {
         "name": "Лечинкель у себя дома",
         "rarity": "Редкий",
         "points": 250,
@@ -259,17 +252,87 @@
         "image_url": "https://ltdfoto.ru/images/2025/11/28/photo_2025-11-28_17-22-13.jpg"
     },
     {
-        "name": "Соник Лечинкель!",
-        "rarity": "Легендарный",
-        "points": 1000,
-        "coins": 50,
-        "image_url": "https://ltdfoto.ru/images/2025/11/28/photo_2025-11-28_17-26-14.jpg"
-    },
-    {
         "name": "Лечинкель марио",
         "rarity": "Редкий",
         "points": 250,
         "coins": 15,
         "image_url": "https://ltdfoto.ru/images/2025/11/28/photo_2025-11-28_17-33-33.jpg"
+    },
+    {
+        "name": "Лечинкель аниме",
+        "rarity": "Редкий",
+        "points": 250,
+        "coins": 15,
+        "image_url": "https://ltdfoto.ru/image/nmMnjw"
+    },
+    {
+        "name": "Лечинкель👁",
+        "rarity": "Обычный",
+        "points": 50,
+        "coins": 5,
+        "image_url": "https://ltdfoto.ru/images/2025/12/18/photo_2025-11-26_19-02-13.jpg"
+    },
+    {
+        "name": "Лечинкель аниматроник",
+        "rarity": "Легендарный",
+        "points": 1000,
+        "coins": 50,
+        "image_url": "https://ltdfoto.ru/images/2025/12/18/6587e763-647f-418f-906c-4d27550c2563-md.jpg"
+    },
+    {
+        "name": "Лечинкель Жид",
+        "rarity": "Редкий",
+        "points": 250,
+        "coins": 15,
+        "image_url": "https://ltdfoto.ru/images/2025/12/18/photo_2025-11-26_18-58-03.jpg"
+    },
+    {
+        "name": "Лечинкель Комару",
+        "rarity": "Легендарный",
+        "points": 1000,
+        "coins": 50,
+        "image_url": "https://ltdfoto.ru/images/2025/12/18/photo_2025-12-18_18-43-28.jpg"
+    },
+    {
+        "name": "Соник Лечинкель!",
+        "rarity": "Мифический",
+        "points": 10000,
+        "coins": 100,
+        "image_url": "https://ltdfoto.ru/images/2025/12/18/photo_2025-12-18_18-48-48.jpg"
+    },
+    {
+        "name": "Лечинкель Вряд-Ли",
+        "rarity": "Эпический",
+        "points": 500,
+        "coins": 25,
+        "image_url": "https://ltdfoto.ru/images/2025/12/18/photo_2025-12-18_20-08-39.jpg"
+    },
+    {
+        "name": "Веселое Яблоко Лечинкель",
+        "rarity": "Редкий",
+        "points": 250,
+        "coins": 15,
+        "image_url": "https://ltdfoto.ru/images/2025/12/18/photo_2025-12-18_20-03-41.jpg"
+    },
+    {
+        "name": "Фурри Лечинкель",
+        "rarity": "Эпический",
+        "points": 500,
+        "coins": 25,
+        "image_url": "https://ltdfoto.ru/images/2025/12/18/photo_2025-12-18_20-12-47.jpg"
+    },
+    {
+        "name": "Лечинкель руZZкий",
+        "rarity": "Эпический",
+        "points": 500,
+        "coins": 25,
+        "image_url": "https://ltdfoto.ru/images/2025/12/18/photo_2025-12-18_20-34-26.jpg"
+    },
+    {
+        "name": "Лечинкелю не дал пианист",
+        "rarity": "Эпический",
+        "points": 500,
+        "coins": 25,
+        "image_url": "https://ltdfoto.ru/images/2025/12/19/photo_2025-12-19_16-37-38.jpg"
     }
 ]
