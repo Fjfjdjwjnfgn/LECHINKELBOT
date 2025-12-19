@@ -5,3 +5,4 @@ main_test.py
 __pycache__/
 *.pyc
 nohup.out
+cards.json
